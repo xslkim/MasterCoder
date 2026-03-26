@@ -5,6 +5,36 @@
 
 ---
 
+## 交付分期
+
+### Phase 1（最小可用版本 v0.1.0）
+
+Phase 1 目标：实现一个可以对话、调用工具、有基本安全防护的命令行 AI 编程客户端。
+
+**包含需求：**
+- REQ-01 ~ REQ-07：项目脚手架、配置、API 客户端、消息管理器、对话循环、工具框架、工具执行引擎
+- REQ-08（read_file）、REQ-09（write_file）、REQ-13（run_command）：三个核心工具
+- REQ-15：最小安全能力（路径沙箱 + 命令黑名单，不含敏感操作高亮）
+- REQ-18：最小命令集（`/help`、`/clear`、`/model`、`/exit`，不含 `/config`）
+
+**Phase 1 交付标准：**
+- 用户可通过 `mastercoder` 启动，与 AI 多轮对话
+- AI 可调用 read_file、write_file、run_command 三个工具
+- 文件操作受沙箱限制，危险命令被拦截
+- 斜杠命令可控制会话
+
+### Phase 2（功能完善版本）
+
+Phase 1 全部完成并合并后，开展以下需求：
+- REQ-10（edit_file）、REQ-11（list_files）、REQ-12（search_files）：补齐剩余工具
+- REQ-14：端到端工具集成
+- REQ-15 完整版：敏感操作高亮提醒
+- REQ-16 ~ REQ-17：Markdown 渲染、状态栏与 Token 统计
+- REQ-18 完整版：补齐 `/config` 命令
+- REQ-19 ~ REQ-25：项目配置、会话持久化、多行输入、上下文管理、错误重试、命令行参数、Git 感知
+
+---
+
 ## 角色定义
 
 | 角色 | 职责 |
@@ -892,6 +922,7 @@ Review 工程师审查代码（通过 / 打回）
 
 1. **文件操作沙箱**：
    - 所有文件操作工具（`read_file`、`write_file`、`edit_file`、`list_files`、`search_files`）的目标路径必须位于**项目目录（工作目录）及其子目录**内
+   - 此限制为硬性约束，初版不提供配置项放宽
    - 路径解析后，检查其绝对路径是否以工作目录的绝对路径为前缀
    - 若路径越界，返回 `"Error: Access denied: path is outside project directory"`
    - 路径中包含 `..` 的情况，先解析为绝对路径再检查（防止 `../../etc/passwd` 穿越）
@@ -1387,7 +1418,7 @@ Review 工程师审查代码（通过 / 打回）
 
 ### 需求描述
 
-允许用户通过 `@` 语法主动将文件内容加入当前对话上下文，无需等待 AI 调用工具。
+允许用户通过 `@` 语法主动将文件内容加入当前对话上下文，无需等待 AI 调用工具。初版仅支持单个文件引用，不支持目录展开（传入目录路径时提示 `Error: Directory references are not supported, use a file path`）。
 
 ### 功能规格
 
@@ -1680,7 +1711,7 @@ REQ-17 状态栏与统计 ← 依赖 REQ-05
 REQ-18 斜杠命令 ← 依赖 REQ-01
   ↓
 REQ-19 项目级配置 ← 依赖 REQ-02
-REQ-20 会话持久化 ← 依赖 REQ-04
+REQ-20 会话持久化 ← 依赖 REQ-04, REQ-18（/sessions 命令）, REQ-24（--resume 参数）
 REQ-21 多行输入 ← 依赖 REQ-01
 REQ-22 手动添加上下文 ← 依赖 REQ-05, REQ-08
 REQ-23 错误处理与重试 ← 依赖 REQ-03
