@@ -283,7 +283,9 @@ dev = [
 
 ## 3. 项目目录结构（完整目标）
 
-以下为项目最终完整目录结构，所有需求的产出物对应关系明确：
+以下为项目最终完整目录结构，所有需求的产出物对应关系明确。
+
+**入口点说明：** 程序唯一入口为 `mastercoder.main:cli`（定义在 `main.py` 中）。`cli.py` 是参数解析工具模块，提供 `parse_args()` 等函数，由 `main.py` 导入调用——`cli.py` 本身不定义入口函数。
 
 ```
 MasterCoder/
@@ -317,7 +319,7 @@ MasterCoder/
 │       ├── input_handler.py         # 多行输入（REQ-21）
 │       ├── context.py               # @ 文件引用（REQ-22）
 │       ├── retry.py                 # 重试机制（REQ-23）
-│       ├── cli.py                   # 命令行参数（REQ-24）
+│       ├── cli.py                   # 命令行参数解析工具（REQ-24，被 main.py 调用，不是独立入口）
 │       └── git_info.py              # Git 感知（REQ-25）
 ├── tests/
 │   ├── conftest.py                  # pytest fixtures（临时目录、Mock Server 等）

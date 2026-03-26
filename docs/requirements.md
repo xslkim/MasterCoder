@@ -87,9 +87,9 @@ Review 工程师审查代码（通过 / 打回）
 ### Review 检查项
 
 - [ ] 项目目录结构清晰，职责分明
-- [ ] 依赖管理文件完整（如 `go.mod` / `package.json` / `pyproject.toml`）
+- [ ] `pyproject.toml` 完整（项目名、版本、依赖、`[project.scripts]` 入口点）
 - [ ] 入口函数逻辑简洁，REPL 循环无阻塞泄漏
-- [ ] `Ctrl+C` 信号处理正确，无 goroutine/线程泄漏
+- [ ] `Ctrl+C`（SIGINT）信号处理正确，无线程泄漏
 
 ### 验收标准
 
@@ -410,7 +410,7 @@ Review 工程师审查代码（通过 / 打回）
   - 注册一个 mock 工具，`get_tool` 能正确返回
   - `get_openai_tools_schema()` 输出符合 OpenAI 格式
   - 重复注册同名工具时抛出错误
-  - 未注册工具的 `get_tool` 返回 nil/None/null
+  - 未注册工具的 `get_tool` 返回 `None`
 
 ### Review 检查项
 
@@ -424,7 +424,7 @@ Review 工程师审查代码（通过 / 打回）
 - [ ] 创建一个实现了工具接口的 mock 工具，注册后 `get_tool("mock")` 返回该工具
 - [ ] `get_openai_tools_schema()` 输出的 JSON 可被 OpenAI API 的 `tools` 参数接受（格式校验）
 - [ ] 再次注册同名工具时抛出 `Tool already registered: mock` 错误
-- [ ] `get_tool("nonexistent")` 返回 nil/None/null，不抛出异常
+- [ ] `get_tool("nonexistent")` 返回 `None`，不抛出异常
 - [ ] 单元测试全部通过
 
 ---
@@ -546,8 +546,8 @@ Review 工程师审查代码（通过 / 打回）
 
 ### 验收标准
 
-- [ ] 对项目中存在的 `.py`/`.js`/`.go` 等文本文件调用 `read_file`，返回完整内容
-- [ ] 传入相对路径 `"src/main.py"`，返回基于工作目录的正确文件内容
+- [ ] 对项目中存在的 `.py` 等文本文件调用 `read_file`，返回完整内容
+- [ ] 传入相对路径 `"src/mastercoder/main.py"`，返回基于工作目录的正确文件内容
 - [ ] 传入不存在的路径，返回 `Error: File not found` 错误
 - [ ] 对无读取权限的文件，返回 `Error: Permission denied` 错误
 - [ ] 对二进制文件（如 `.png`），返回 `Error: Cannot read binary file` 错误
@@ -1418,13 +1418,13 @@ Review 工程师审查代码（通过 / 打回）
 
 ### 需求描述
 
-允许用户通过 `@` 语法主动将文件内容加入当前对话上下文，无需等待 AI 调用工具。初版仅支持单个文件引用，不支持目录展开（传入目录路径时提示 `Error: Directory references are not supported, use a file path`）。
+允许用户通过 `@` 语法主动将文件内容加入当前对话上下文，无需等待 AI 调用工具。支持一次引用多个文件，但每个 `@` 引用必须指向文件，不支持目录展开（传入目录路径时提示 `Error: Directory references are not supported, use a file path`）。
 
 ### 功能规格
 
 1. **`@` 语法**：
    - 用户输入中包含 `@<文件路径>` 时，程序在发送给 AI 前自动读取该文件并附加到消息中
-   - 示例：`@src/main.py 这个文件有什么问题？`
+   - 示例：`@src/mastercoder/main.py 这个文件有什么问题？`
    - 支持多个文件引用：`@a.py @b.py 比较这两个文件`
    - 文件路径支持相对路径和绝对路径
 
@@ -1436,7 +1436,7 @@ Review 工程师审查代码（通过 / 打回）
      <用户输入的原始文本（去掉 @path 部分）>
 
      ---
-     File: src/main.py
+     File: src/mastercoder/main.py
      ```python
      <文件内容>
      ```
@@ -1645,7 +1645,7 @@ Review 工程师审查代码（通过 / 打回）
      ...
 
      Status:
-     M  src/main.py
+     M  src/mastercoder/main.py
       M src/utils.py
      ?? new_file.txt
      ```
