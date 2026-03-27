@@ -9,8 +9,18 @@ from mastercoder_automation.state_store import StateStore
 class DummyGh:
     def __init__(self) -> None:
         self.merged = []
+        self.approved: list[int] = []
 
-    def merge_pr(self, pr_number: int) -> None:
+    def approve_pr(self, pr_number: int, body: str, *, gh_token: str | None = None) -> None:
+        self.approved.append(pr_number)
+
+    def request_changes(self, pr_number: int, body: str, *, gh_token: str | None = None) -> None:
+        pass
+
+    def comment_pr(self, pr_number: int, body: str, *, gh_token: str | None = None) -> None:
+        pass
+
+    def merge_pr(self, pr_number: int, *, gh_token: str | None = None) -> None:
         self.merged.append(pr_number)
 
 
@@ -30,6 +40,8 @@ def test_ready_transitions_when_dependencies_done(monkeypatch, tmp_path: Path) -
     state_file = _make_state_file(tmp_path, state)
     settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
 
+    monkeypatch.setenv("GIT_AGENT_TOKEN_REVIEW", "test-review-token")
+    monkeypatch.setenv("GIT_AGENT_TOKEN_TEST", "test-qa-token")
     monkeypatch.setattr(
         "mastercoder_automation.orchestrator.run_dev_implementation_crew",
         lambda *_: ("skipped", 7),
@@ -68,6 +80,8 @@ def test_failures_go_to_fixing_then_blocked(monkeypatch, tmp_path: Path) -> None
     state_file = _make_state_file(tmp_path, state)
     settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
 
+    monkeypatch.setenv("GIT_AGENT_TOKEN_REVIEW", "test-review-token")
+    monkeypatch.setenv("GIT_AGENT_TOKEN_TEST", "test-qa-token")
     monkeypatch.setattr(
         "mastercoder_automation.orchestrator.run_dev_implementation_crew",
         lambda *_: ("skipped", None),

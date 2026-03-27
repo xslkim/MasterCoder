@@ -38,6 +38,13 @@ jobs:
           GIT_AGENT_TOKEN_DEV: ${{ secrets.GIT_AGENT_TOKEN_DEV }}
           GIT_AGENT_USERNAME_DEV: ${{ vars.GIT_AGENT_USERNAME_DEV }}
           GIT_AGENT_EMAIL_DEV: ${{ vars.GIT_AGENT_EMAIL_DEV }}
+          GIT_AGENT_TOKEN_REVIEW: ${{ secrets.GIT_AGENT_TOKEN_REVIEW }}
+          GIT_AGENT_USERNAME_REVIEW: ${{ vars.GIT_AGENT_USERNAME_REVIEW }}
+          GIT_AGENT_TOKEN_TEST: ${{ secrets.GIT_AGENT_TOKEN_TEST }}
+          GIT_AGENT_USERNAME_TEST: ${{ vars.GIT_AGENT_USERNAME_TEST }}
+          GIT_AGENT_TOKEN_MERGE: ${{ secrets.GIT_AGENT_TOKEN_MERGE }}
+          AUTOMATION_STRICT_HUMAN_REVIEW: ${{ vars.AUTOMATION_STRICT_HUMAN_REVIEW }}
+          AUTOMATION_STRICT_HUMAN_QA: ${{ vars.AUTOMATION_STRICT_HUMAN_QA }}
           GITHUB_REPO: ${{ github.repository }}
           REPO_ROOT: ${{ github.workspace }}
           STATE_FILE: state/req-status.json

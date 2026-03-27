@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 
 
-def _run(cmd: list[str]) -> str:
-    proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+def _run(cmd: list[str], gh_token: str | None = None) -> str:
+    env = os.environ.copy()
+    if gh_token:
+        env["GH_TOKEN"] = gh_token
+    proc = subprocess.run(cmd, capture_output=True, text=True, env=env, check=False)
     if proc.returncode != 0:
         raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{proc.stderr.strip()}")
     return proc.stdout.strip()
@@ -16,7 +20,14 @@ def _run(cmd: list[str]) -> str:
 class GhClient:
     repo: str
 
-    def create_pr(self, branch: str, title: str, body: str) -> int:
+    def create_pr(
+        self,
+        branch: str,
+        title: str,
+        body: str,
+        *,
+        gh_token: str | None = None,
+    ) -> int:
         out = _run(
             [
                 "gh",
@@ -32,12 +43,19 @@ class GhClient:
                 body,
                 "--json",
                 "number",
-            ]
+            ],
+            gh_token=gh_token,
         )
         payload = json.loads(out)
         return int(payload["number"])
 
-    def approve_pr(self, pr_number: int, body: str) -> None:
+    def approve_pr(
+        self,
+        pr_number: int,
+        body: str,
+        *,
+        gh_token: str | None = None,
+    ) -> None:
         _run(
             [
                 "gh",
@@ -49,10 +67,17 @@ class GhClient:
                 "--approve",
                 "--body",
                 body,
-            ]
+            ],
+            gh_token=gh_token,
         )
 
-    def request_changes(self, pr_number: int, body: str) -> None:
+    def request_changes(
+        self,
+        pr_number: int,
+        body: str,
+        *,
+        gh_token: str | None = None,
+    ) -> None:
         _run(
             [
                 "gh",
@@ -64,10 +89,17 @@ class GhClient:
                 "--request-changes",
                 "--body",
                 body,
-            ]
+            ],
+            gh_token=gh_token,
         )
 
-    def comment_pr(self, pr_number: int, body: str) -> None:
+    def comment_pr(
+        self,
+        pr_number: int,
+        body: str,
+        *,
+        gh_token: str | None = None,
+    ) -> None:
         _run(
             [
                 "gh",
@@ -78,10 +110,16 @@ class GhClient:
                 self.repo,
                 "--body",
                 body,
-            ]
+            ],
+            gh_token=gh_token,
         )
 
-    def merge_pr(self, pr_number: int) -> None:
+    def merge_pr(
+        self,
+        pr_number: int,
+        *,
+        gh_token: str | None = None,
+    ) -> None:
         _run(
             [
                 "gh",
@@ -93,6 +131,6 @@ class GhClient:
                 "--squash",
                 "--delete-branch",
                 "--auto",
-            ]
+            ],
+            gh_token=gh_token,
         )
-

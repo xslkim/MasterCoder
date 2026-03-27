@@ -13,14 +13,27 @@ Deterministic multi-agent software delivery framework built with CrewAI.
 - JSON state store for resumable pipeline execution
 - GitHub Actions workflow entrypoint
 
-## Quick start
+## Quick start（开跑）
 
 ```bash
-pip install -e ".[dev]"
+cd /path/to/MasterCoder
+python3 -m pip install -e ".[dev]"
 source .env.sh
+export REPO_ROOT="$(pwd)"
+export GITHUB_REPO="your-org/your-repo"
+
 cp state/req-status.example.json state/req-status.json
+# 编辑 state/req-status.json：将要做的 REQ 标为 READY
+
+python3 scripts/crewai_glm_smoke.py
+python3 scripts/crewai_github_pat_smoke.py
+
 mc-auto run-once --req-id REQ-01
 ```
+
+本机固定路径时也可直接：**`./run-automation.sh REQ-01`**（会先跑两个冒烟脚本，详见脚本内注释）。
+
+完整清单、严格真人 Review/QA、排错：**[docs/automation-tutorial.md](docs/automation-tutorial.md)** §0。
 
 ## Required environment variables
 
@@ -30,6 +43,9 @@ mc-auto run-once --req-id REQ-01
 - `GITHUB_REPO` (for example: `xslkim/MasterCoder`)
 - `REPO_ROOT` (Git working copy root for automation; default: current directory)
 - `GIT_AGENT_TOKEN_DEV` / `GIT_AGENT_USERNAME_DEV` / `GIT_AGENT_EMAIL_DEV` (push + PR + commit identity)
+- `GIT_AGENT_TOKEN_REVIEW` + `GIT_AGENT_USERNAME_REVIEW` (post `gh pr review` as Review account, or human poll)
+- `GIT_AGENT_TOKEN_TEST` + `GIT_AGENT_USERNAME_TEST` (post QA comment, or human poll)
+- Optional: `GIT_AGENT_TOKEN_MERGE`, `AUTOMATION_STRICT_HUMAN_REVIEW`, `AUTOMATION_STRICT_HUMAN_QA` — see [docs/automation-tutorial.md](docs/automation-tutorial.md)
 - `COVERAGE_MIN` (default: `80`)
 
 ## Notes
