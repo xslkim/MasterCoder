@@ -31,7 +31,7 @@ python3 scripts/crewai_github_pat_smoke.py
 mc-auto run-once --req-id REQ-01
 ```
 
-本机固定路径时也可直接：**`./run-automation.sh REQ-01`**（会先跑两个冒烟脚本，详见脚本内注释）。
+本机固定路径：**`./run-automation.sh`** 默认 **`mc-auto run-all`**（无冒烟），按 `state/req-status.json` 反复推进所有 `READY`/`FIXING` 的 REQ，直到做完或达到 `--max-rounds`。指定单个 REQ：`./run-automation.sh REQ-01`。可选：`--once` 只跑一轮，`--smoke` 先跑冒烟。详见脚本注释。
 
 完整清单、严格真人 Review/QA、排错：**[docs/automation-tutorial.md](docs/automation-tutorial.md)** §0。
 

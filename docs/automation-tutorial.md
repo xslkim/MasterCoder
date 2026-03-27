@@ -21,8 +21,8 @@
 9. **冒烟（强烈建议）**：
    - `python3 scripts/crewai_glm_smoke.py`
    - `python3 scripts/crewai_github_pat_smoke.py`
-10. **正式跑**：在项目根执行 **`./run-automation.sh REQ-01`**（默认会先跑 LLM 与 GitHub 冒烟，默认 `GITHUB_REPO=xslkim/MasterCoder`，可用环境变量覆盖）；或直接 `source .env.sh` 后 `mc-auto run-once --req-id REQ-01`。
-11. **单次执行的边界**：一次 `run-once` 会尽量把 **一个** REQ 从 `READY/FIXING` 推到 `DONE`（含 LLM Crew 改代码、门禁、多账号 Review/QA、**自动 merge**）。卡住时看终端与 `state/req-status.json` 里的 `state`、`last_error`。
+10. **正式跑（推荐整项目）**：在项目根执行 **`./run-automation.sh`** — 默认 **不跑冒烟**，执行 **`mc-auto run-all`**：循环 `run-once`，直到状态文件里 **没有** `READY`/`FIXING`（或达到 `AUTOMATION_MAX_ROUNDS` / `--max-rounds`）。只推进一条需求：`./run-automation.sh REQ-01`。只跑一轮：`./run-automation.sh --once`。
+11. **边界**：一轮 `run-once` 推进 **一个** REQ 的一次「从 Dev 到 merge 的整段尝试」；`run-all` 会多轮调用直到队列空。**Resume**：若某 REQ 停在 `REVIEWING`/`TESTING`/`DEVELOPING` 等非 `READY|FIXING`，当前 `run-all --req-id` 会提示停住（需手工修状态或扩展编排器）。
 
 **风险提醒**：Dev Agent 会在 `REPO_ROOT` 内 **checkout 分支、写文件、`git push`**；请保证工作区无未保存的重要修改，或使用独立克隆专门跑自动化。
 

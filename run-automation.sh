@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# 本机一键开跑：加载 .env.sh，设置 REPO_ROOT / GITHUB_REPO，可选冒烟，再执行 mc-auto。
+# 本机一键开跑完整流水线：加载 .env.sh，设置 REPO_ROOT / GITHUB_REPO，默认不冒烟，反复 mc-auto 直到无 READY/FIXING。
 # 用法：
-#   ./run-automation.sh                    # 冒烟 + 自动选第一个 READY/FIXING 的 REQ
-#   ./run-automation.sh REQ-01             # 冒烟 + 只跑 REQ-01
-#   ./run-automation.sh --req-id REQ-01    # 同上
-#   ./run-automation.sh --no-smoke REQ-01  # 跳过冒烟
+#   ./run-automation.sh                      # run-all（整份 state 里所有可推进的 REQ）
+#   ./run-automation.sh REQ-01               # run-all 只盯一个 REQ 直到 DONE/BLOCKED/PENDING
+#   ./run-automation.sh --req-id REQ-01      # 同上
+#   ./run-automation.sh --once                 # 只跑一轮 run-once（自动挑一个）
+#   ./run-automation.sh --once REQ-01          # 只跑一轮 run-once
+#   ./run-automation.sh --smoke                # 先跑两个冒烟再 run-all
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,12 +25,17 @@ set +a
 export REPO_ROOT="$ROOT"
 export GITHUB_REPO="${GITHUB_REPO:-xslkim/MasterCoder}"
 
-RUN_SMOKE=1
+RUN_SMOKE=0
+MC_MODE="all"
 REQ_ID=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --no-smoke)
-      RUN_SMOKE=0
+    --smoke)
+      RUN_SMOKE=1
+      shift
+      ;;
+    --once)
+      MC_MODE="once"
       shift
       ;;
     --req-id)
@@ -37,7 +44,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h | --help)
-      echo "用法: $0 [--no-smoke] [--req-id REQ-XX] [REQ-XX]"
+      echo "用法: $0 [--smoke] [--once] [--req-id REQ-XX] [REQ-XX]"
       exit 0
       ;;
     *)
@@ -54,9 +61,18 @@ if [[ "$RUN_SMOKE" -eq 1 ]]; then
   python3 scripts/crewai_github_pat_smoke.py
 fi
 
-echo "=== mc-auto run-once (REPO_ROOT=$REPO_ROOT GITHUB_REPO=$GITHUB_REPO) ==="
-if [[ -n "$REQ_ID" ]]; then
-  exec mc-auto run-once --req-id "$REQ_ID"
+if [[ "$MC_MODE" == "once" ]]; then
+  echo "=== mc-auto run-once (REPO_ROOT=$REPO_ROOT GITHUB_REPO=$GITHUB_REPO) ==="
+  if [[ -n "$REQ_ID" ]]; then
+    exec mc-auto run-once --req-id "$REQ_ID"
+  else
+    exec mc-auto run-once
+  fi
 else
-  exec mc-auto run-once
+  echo "=== mc-auto run-all (REPO_ROOT=$REPO_ROOT GITHUB_REPO=$GITHUB_REPO) ==="
+  if [[ -n "$REQ_ID" ]]; then
+    exec mc-auto run-all --req-id "$REQ_ID"
+  else
+    exec mc-auto run-all
+  fi
 fi
