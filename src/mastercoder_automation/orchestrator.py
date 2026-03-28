@@ -17,6 +17,18 @@ from .state_store import StateStore
 _log = logging.getLogger(__name__)
 
 
+def _format_gh_token_permission_hint(operation: str, err: str) -> str:
+    """GitHub 常见 PAT 权限错误说明。"""
+    low = err.lower()
+    hint = ""
+    if "resource not accessible" in low or "403" in err or "forbidden" in low:
+        hint = (
+            " 请检查 PAT：Fine-grained 须对目标仓库开启 Pull requests: Read and write；"
+            "Classic PAT 须勾选 repo。该 GitHub 账号须对仓库有写权限。"
+        )
+    return f"{operation} {err}{hint}"
+
+
 @dataclass
 class Orchestrator:
     settings: Settings
@@ -148,10 +160,18 @@ class Orchestrator:
                     return
                 review = review_decision(req, gate.output, self.settings)
                 body = "[审查 Agent — LLM 摘要]\n" + "\n".join(review.reasons)
-                if review.verdict == "APPROVED":
-                    self.gh.approve_pr(req.pr_number, body, gh_token=review_token)
-                else:
-                    self.gh.request_changes(req.pr_number, body, gh_token=review_token)
+                try:
+                    if review.verdict == "APPROVED":
+                        self.gh.approve_pr(req.pr_number, body, gh_token=review_token)
+                    else:
+                        self.gh.request_changes(req.pr_number, body, gh_token=review_token)
+                except RuntimeError as e:
+                    self._retry_or_block(
+                        req,
+                        _format_gh_token_permission_hint("GitHub 提交 Review（approve/request_changes）", str(e)),
+                    )
+                    return
+                if review.verdict != "APPROVED":
                     self._retry_or_block(req, "审查未通过：" + "\n".join(review.reasons))
                     return
 
@@ -191,7 +211,14 @@ class Orchestrator:
                     return
                 qa = qa_decision(req, gate.output, self.settings)
                 body = f"{qa.verdict}\n\n" + "\n".join(qa.reasons)
-                self.gh.comment_pr(req.pr_number, body, gh_token=test_token)
+                try:
+                    self.gh.comment_pr(req.pr_number, body, gh_token=test_token)
+                except RuntimeError as e:
+                    self._retry_or_block(
+                        req,
+                        _format_gh_token_permission_hint("GitHub 发表 QA 评论", str(e)),
+                    )
+                    return
                 if qa.verdict == "QA_FAILED":
                     self._retry_or_block(req, "\n".join(qa.reasons))
                     return
