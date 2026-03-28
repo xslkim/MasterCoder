@@ -34,6 +34,10 @@ def _make_state_file(tmp_path: Path, state: PipelineState) -> Path:
 
 def _stub_branch_checks(monkeypatch, *, changed_files=None, commits_ahead: int = 1) -> None:
     monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_current_branch",
+        lambda *_a, **_k: "main",
+    )
+    monkeypatch.setattr(
         "mastercoder_automation.orchestrator.repo_ops.git_checkout_main_pull",
         lambda *_a, **_k: "ok",
     )
@@ -234,6 +238,10 @@ def test_branch_prepare_failure_goes_to_fixing(monkeypatch, tmp_path: Path) -> N
     state_file = _make_state_file(tmp_path, state)
     settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
     monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_current_branch",
+        lambda *_a, **_k: "main",
+    )
+    monkeypatch.setattr(
         "mastercoder_automation.orchestrator.repo_ops.git_checkout_main_pull",
         lambda *_a, **_k: "ok",
     )
@@ -251,3 +259,98 @@ def test_branch_prepare_failure_goes_to_fixing(monkeypatch, tmp_path: Path) -> N
     req = new_state.requirements[0]
     assert req.state == ReqState.FIXING
     assert "准备开发分支失败" in (req.last_error or "")
+
+
+def test_prepare_branch_skips_checkout_when_already_on_target(monkeypatch, tmp_path: Path) -> None:
+    state = PipelineState(
+        requirements=[
+            ReqRecord(
+                req_id="REQ-02",
+                title="config",
+                state=ReqState.READY,
+                branch="feat/req-02-change",
+            )
+        ]
+    )
+    state_file = _make_state_file(tmp_path, state)
+    settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_current_branch",
+        lambda *_a, **_k: "feat/req-02-change",
+    )
+
+    def fail_if_called(*_a, **_k):
+        raise AssertionError("should not switch branches")
+
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_checkout_main_pull",
+        fail_if_called,
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_create_branch",
+        fail_if_called,
+    )
+    orchestrator = Orchestrator(settings=settings, store=StateStore(state_file), gh=DummyGh())
+    out = orchestrator._prepare_req_branch(state.requirements[0])
+    assert out is None
+    assert state.requirements[0].branch == "feat/req-02-change"
+
+
+def test_resume_existing_branch_skips_dev_agent(monkeypatch, tmp_path: Path) -> None:
+    state = PipelineState(
+        requirements=[
+            ReqRecord(
+                req_id="REQ-02",
+                title="config",
+                state=ReqState.FIXING,
+                branch="feat/req-02-change",
+            )
+        ]
+    )
+    state_file = _make_state_file(tmp_path, state)
+    settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
+    monkeypatch.setenv("GIT_AGENT_TOKEN_DEV", "dev-token")
+    monkeypatch.setenv("GIT_AGENT_TOKEN_REVIEW", "review-token")
+    monkeypatch.setenv("GIT_AGENT_TOKEN_TEST", "qa-token")
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_current_branch",
+        lambda *_a, **_k: "feat/req-02-change",
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_changed_files_against_default",
+        lambda *_a, **_k: ["tests/test_config.py", "src/mastercoder/config.py"],
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_commits_ahead_of_default",
+        lambda *_a, **_k: 1,
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.run_dev_implementation_crew",
+        lambda *_: (_ for _ in ()).throw(AssertionError("dev crew should be skipped")),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.run_quality_gates",
+        lambda *_a, **_k: type("G", (), {"passed": True, "output": "ok"})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.git_push_https",
+        lambda *_a, **_k: "pushed",
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.gh_pr_create_json",
+        lambda *_a, **_k: 23,
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.review_decision",
+        lambda *_: type("D", (), {"verdict": "APPROVED", "reasons": []})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.qa_decision",
+        lambda *_: type("D", (), {"verdict": "QA_PASSED", "reasons": []})(),
+    )
+
+    orchestrator = Orchestrator(settings=settings, store=StateStore(state_file), gh=DummyGh())
+    new_state = orchestrator.run_once(req_id="REQ-02")
+    req = new_state.requirements[0]
+    assert req.pr_number == 23
+    assert req.state == ReqState.DONE
