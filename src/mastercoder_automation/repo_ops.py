@@ -5,8 +5,28 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from shutil import which
 
 from .models import ReqRecord
+
+
+def _pr_number_from_gh_create_stdout(stdout: str) -> int:
+    """解析 `gh pr create` 输出：新版可能为 JSON，旧版为一行 PR URL。"""
+    text = (stdout or "").strip()
+    if not text:
+        raise ValueError("gh pr create 无输出")
+    if text.startswith("{"):
+        try:
+            return int(json.loads(text)["number"])
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            pass
+    m = re.search(r"github\.com/[^/\s]+/[^/\s]+/pull/(\d+)", text)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"/pull/(\d+)", text)
+    if m:
+        return int(m.group(1))
+    raise ValueError(f"无法从 gh pr create 输出解析 PR 编号：{text[:800]!r}")
 
 
 def branch_slug(req: ReqRecord) -> str:
@@ -38,7 +58,7 @@ def repo_write_text(repo_root: Path, relative_path: str, content: str) -> str:
     path = resolve_under_repo(repo_root, relative_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-    return f"OK wrote {relative_path} ({len(content)} bytes)"
+    return f"成功：已写入 {relative_path}（{len(content)} 字节）"
 
 
 def _git(repo_root: Path, *args: str, env: dict[str, str] | None = None) -> str:
@@ -52,7 +72,7 @@ def _git(repo_root: Path, *args: str, env: dict[str, str] | None = None) -> str:
     )
     err = (proc.stderr or proc.stdout or "").strip()
     if proc.returncode != 0:
-        raise RuntimeError(f"git {' '.join(args)}\n{err}")
+        raise RuntimeError(f"git 命令失败 {' '.join(args)}\n{err}")
     return proc.stdout.strip()
 
 
@@ -66,7 +86,7 @@ def git_checkout_main_pull(repo_root: Path) -> str:
         _git(repo_root, "pull", "origin", "main", "--ff-only")
     except RuntimeError:
         _git(repo_root, "pull", "origin", "master", "--ff-only")
-    return "OK updated default branch"
+    return "成功：已更新默认分支"
 
 
 def git_create_branch(repo_root: Path, branch: str) -> str:
@@ -74,7 +94,7 @@ def git_create_branch(repo_root: Path, branch: str) -> str:
         _git(repo_root, "checkout", "-b", branch)
     except RuntimeError:
         _git(repo_root, "checkout", branch)
-    return f"OK on branch {branch}"
+    return f"成功：当前分支 {branch}"
 
 
 def git_status_short(repo_root: Path) -> str:
@@ -83,7 +103,7 @@ def git_status_short(repo_root: Path) -> str:
 
 def git_add_all(repo_root: Path) -> str:
     _git(repo_root, "add", "-A")
-    return "OK git add -A"
+    return "成功：已执行 git add -A"
 
 
 def git_commit(repo_root: Path, message: str) -> str:
@@ -111,12 +131,12 @@ def git_commit(repo_root: Path, message: str) -> str:
     )
     if proc.returncode != 0:
         raise RuntimeError((proc.stderr or proc.stdout or "").strip())
-    return "OK committed"
+    return "成功：已提交"
 
 
 def git_push_https(repo_root: Path, branch: str, token: str, github_repo: str) -> str:
     if "/" not in github_repo:
-        raise ValueError("github_repo must be owner/repo")
+        raise ValueError("github_repo 须为 owner/repo 形式")
     owner, _, repo = github_repo.partition("/")
     url = f"https://x-access-token:{token}@github.com/{owner}/{repo}.git"
     proc = subprocess.run(
@@ -129,10 +149,15 @@ def git_push_https(repo_root: Path, branch: str, token: str, github_repo: str) -
     )
     if proc.returncode != 0:
         raise RuntimeError((proc.stderr or proc.stdout or "").strip())
-    return f"OK pushed {branch}"
+    return f"成功：已推送分支 {branch}"
 
 
 def gh_pr_create_json(repo: str, head: str, title: str, body: str, token: str) -> int:
+    if which("gh") is None:
+        raise RuntimeError("未找到 gh（GitHub CLI），无法创建 PR。请安装：https://cli.github.com/")
+    env = {**os.environ}
+    if token:
+        env["GH_TOKEN"] = token
     proc = subprocess.run(
         [
             "gh",
@@ -146,15 +171,14 @@ def gh_pr_create_json(repo: str, head: str, title: str, body: str, token: str) -
             title,
             "--body",
             body,
-            "--json",
-            "number",
         ],
         capture_output=True,
         text=True,
-        env={**os.environ, "GH_TOKEN": token},
+        env=env,
         check=False,
     )
     if proc.returncode != 0:
         raise RuntimeError((proc.stderr or proc.stdout or "").strip())
-    payload = json.loads(proc.stdout)
-    return int(payload["number"])
+    # 部分 gh 版本把 PR URL 打在 stdout 或 stderr
+    blob = f"{proc.stdout or ''}\n{proc.stderr or ''}".strip()
+    return _pr_number_from_gh_create_stdout(blob)

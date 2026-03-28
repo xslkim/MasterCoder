@@ -19,13 +19,14 @@ dev = [
 
 [project.scripts]
 mc-auto = "mastercoder_automation.cli:app"
+mastercoder = "mastercoder.main:main"
 
 [build-system]
 requires = ["hatchling>=1.25.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mastercoder_automation"]
+packages = ["src/mastercoder_automation", "src/mastercoder"]
 
 [tool.ruff]
 line-length = 100
@@ -33,3 +34,16 @@ target-version = "py310"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# 门禁 --cov=mastercoder_automation：排除仅能在集成环境跑通的模块（LLM / gh CLI）
+[tool.coverage.run]
+source = ["src/mastercoder_automation"]
+omit = [
+  "*/dev_crew.py",
+  "*/crew_agents.py",
+  "*/pr_human_gate.py",
+]
+
+[tool.coverage.report]
+precision = 0
+show_missing = true

@@ -15,6 +15,8 @@ Deterministic multi-agent software delivery framework built with CrewAI.
 
 ## Quick start（开跑）
 
+前置条件：**已安装 `git` 与 [GitHub CLI `gh`](https://cli.github.com/)**（在 PATH 中可执行）。
+
 ```bash
 cd /path/to/MasterCoder
 python3 -m pip install -e ".[dev]"

@@ -7,7 +7,7 @@
       "state": "READY",
       "retries": 0,
       "max_retries": 3,
-      "branch": null,
+      "branch": "feat/req-01-change",
       "pr_number": null,
       "last_error": null
     },

@@ -33,8 +33,6 @@ jobs:
       - name: Run deterministic orchestrator
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_API_BASE_URL: ${{ vars.OPENAI_API_BASE_URL }}
-          MODEL_NAME: ${{ vars.MODEL_NAME }}
           GIT_AGENT_TOKEN_DEV: ${{ secrets.GIT_AGENT_TOKEN_DEV }}
           GIT_AGENT_USERNAME_DEV: ${{ vars.GIT_AGENT_USERNAME_DEV }}
           GIT_AGENT_EMAIL_DEV: ${{ vars.GIT_AGENT_EMAIL_DEV }}
@@ -50,7 +48,6 @@ jobs:
           STATE_FILE: state/req-status.json
           COVERAGE_MIN: "80"
         run: |
-          export MODEL_NAME="${MODEL_NAME:-gpt-4o-mini}"
           if [ -n "${{ inputs.req_id }}" ]; then
             mc-auto run-once --req-id "${{ inputs.req_id }}"
           else

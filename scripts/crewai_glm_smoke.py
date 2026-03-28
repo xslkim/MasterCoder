@@ -6,13 +6,24 @@ Run:
   source .env.sh
   python3 scripts/crewai_glm_smoke.py
 
-Requires: OPENAI_API_KEY, OPENAI_API_BASE_URL, MODEL_NAME (same as .env.sh for 智谱 GLM).
+Requires: OPENAI_API_KEY (model and base URL match ``mastercoder_automation.config`` defaults).
 """
 
 from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
+
+_root = Path(__file__).resolve().parents[1]
+_src = _root / "src"
+if _src.is_dir() and str(_src) not in sys.path:
+    sys.path.insert(0, str(_src))
+
+from mastercoder_automation.config import (  # noqa: E402
+    DEFAULT_LLM_MODEL_NAME,
+    DEFAULT_OPENAI_API_BASE_URL,
+)
 
 
 def main() -> int:
@@ -22,16 +33,11 @@ def main() -> int:
     from crewai import Agent, Crew, LLM, Process, Task
 
     api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
-    base_url = (os.environ.get("OPENAI_API_BASE_URL") or "").strip().rstrip("/")
-    model = (os.environ.get("MODEL_NAME") or "").strip()
+    base_url = DEFAULT_OPENAI_API_BASE_URL.rstrip("/")
+    model = DEFAULT_LLM_MODEL_NAME
 
     if not api_key:
         print("error: OPENAI_API_KEY is not set (source .env.sh first)", file=sys.stderr)
-        return 1
-    if not base_url:
-        base_url = "https://open.bigmodel.cn/api/paas/v4"
-    if not model:
-        print("error: MODEL_NAME is not set", file=sys.stderr)
         return 1
 
     llm = LLM(

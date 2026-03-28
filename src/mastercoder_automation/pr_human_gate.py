@@ -23,7 +23,7 @@ def _run_json(cmd: list[str], token: str) -> object:
         check=False,
     )
     if proc.returncode != 0:
-        raise RuntimeError(f"gh failed: {' '.join(cmd)}\n{(proc.stderr or proc.stdout).strip()}")
+        raise RuntimeError(f"gh 失败：{' '.join(cmd)}\n{(proc.stderr or proc.stdout).strip()}")
     return json.loads(proc.stdout)
 
 
@@ -95,7 +95,7 @@ def latest_qa_comment_from_login(
 ) -> QaPollResult | Literal["PENDING"]:
     owner, _, name = github_repo.partition("/")
     if not owner or not name:
-        raise ValueError("github_repo must be owner/repo")
+        raise ValueError("github_repo 须为 owner/repo 形式")
     data = _run_json(
         [
             "gh",
@@ -133,9 +133,7 @@ def poll_human_pr_qa(
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         try:
-            verdict = latest_qa_comment_from_login(
-                github_repo, pr_number, test_login, token
-            )
+            verdict = latest_qa_comment_from_login(github_repo, pr_number, test_login, token)
         except RuntimeError:
             verdict = "PENDING"
         if verdict in ("QA_PASSED", "QA_FAILED"):

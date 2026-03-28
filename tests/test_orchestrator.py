@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from mastercoder_automation.config import Settings
 from mastercoder_automation.models import PipelineState, ReqRecord, ReqState
 from mastercoder_automation.orchestrator import Orchestrator
@@ -34,7 +36,9 @@ def test_ready_transitions_when_dependencies_done(monkeypatch, tmp_path: Path) -
     state = PipelineState(
         requirements=[
             ReqRecord(req_id="REQ-01", title="base", state=ReqState.DONE),
-            ReqRecord(req_id="REQ-02", title="child", blocked_by=["REQ-01"], state=ReqState.PENDING),
+            ReqRecord(
+                req_id="REQ-02", title="child", blocked_by=["REQ-01"], state=ReqState.PENDING
+            ),
         ]
     )
     state_file = _make_state_file(tmp_path, state)
@@ -97,3 +101,67 @@ def test_failures_go_to_fixing_then_blocked(monkeypatch, tmp_path: Path) -> None
     assert req.state == ReqState.BLOCKED
     assert req.last_error is not None
 
+
+def test_run_once_unknown_req_id_raises(tmp_path: Path) -> None:
+    state = PipelineState(
+        requirements=[ReqRecord(req_id="REQ-01", title="base", state=ReqState.READY)]
+    )
+    state_file = _make_state_file(tmp_path, state)
+    settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
+    orchestrator = Orchestrator(settings=settings, store=StateStore(state_file), gh=DummyGh())
+    with pytest.raises(ValueError, match="REQ-99"):
+        orchestrator.run_once(req_id="REQ-99")
+
+
+def test_blocked_by_unknown_dependency_stays_pending(tmp_path: Path) -> None:
+    state = PipelineState(
+        requirements=[
+            ReqRecord(req_id="REQ-01", title="base", state=ReqState.DONE),
+            ReqRecord(
+                req_id="REQ-02",
+                title="child",
+                blocked_by=["REQ-typo-not-in-list"],
+                state=ReqState.PENDING,
+            ),
+        ]
+    )
+    state_file = _make_state_file(tmp_path, state)
+    settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
+    orchestrator = Orchestrator(settings=settings, store=StateStore(state_file), gh=DummyGh())
+    new_state = orchestrator.run_once()
+    assert new_state.requirements[1].state == ReqState.PENDING
+
+
+def test_merge_failure_does_not_crash(monkeypatch, tmp_path: Path) -> None:
+    class BadMergeGh(DummyGh):
+        def merge_pr(self, pr_number: int, *, gh_token: str | None = None) -> None:
+            raise RuntimeError("merge denied")
+
+    state = PipelineState(
+        requirements=[
+            ReqRecord(req_id="REQ-01", title="base", state=ReqState.READY),
+        ]
+    )
+    state_file = _make_state_file(tmp_path, state)
+    settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
+    monkeypatch.setenv("GIT_AGENT_TOKEN_REVIEW", "test-review-token")
+    monkeypatch.setenv("GIT_AGENT_TOKEN_TEST", "test-qa-token")
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.run_dev_implementation_crew",
+        lambda *_: ("ok", 1),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.run_quality_gates",
+        lambda *_a, **_k: type("G", (), {"passed": True, "output": "ok"})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.review_decision",
+        lambda *_: type("D", (), {"verdict": "APPROVED", "reasons": []})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.qa_decision",
+        lambda *_: type("D", (), {"verdict": "QA_PASSED", "reasons": []})(),
+    )
+    orchestrator = Orchestrator(settings=settings, store=StateStore(state_file), gh=BadMergeGh())
+    new_state = orchestrator.run_once()
+    assert new_state.requirements[0].state == ReqState.DONE

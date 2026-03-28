@@ -4,15 +4,26 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+# 防止子进程无限挂起（pytest/ruff 异常时）
+_GATE_STEP_TIMEOUT_SEC = 900
+
 
 def _run(cmd: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=False,
-        cwd=cwd,
-    )
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=cwd,
+            timeout=_GATE_STEP_TIMEOUT_SEC,
+        )
+    except subprocess.TimeoutExpired as e:
+        return (
+            -1,
+            "",
+            f"命令超时（>{_GATE_STEP_TIMEOUT_SEC}s）：{' '.join(cmd)}\n{e}",
+        )
     return proc.returncode, proc.stdout, proc.stderr
 
 
@@ -48,4 +59,3 @@ def run_quality_gates(coverage_min: int, cwd: Path | None = None) -> GateResult:
         if code != 0:
             return GateResult(False, "\n".join(logs))
     return GateResult(True, "\n".join(logs))
-

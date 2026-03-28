@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 from dataclasses import dataclass
+
+from .repo_ops import _pr_number_from_gh_create_stdout
 
 
 def _run(cmd: list[str], gh_token: str | None = None) -> str:
@@ -12,7 +13,7 @@ def _run(cmd: list[str], gh_token: str | None = None) -> str:
         env["GH_TOKEN"] = gh_token
     proc = subprocess.run(cmd, capture_output=True, text=True, env=env, check=False)
     if proc.returncode != 0:
-        raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{proc.stderr.strip()}")
+        raise RuntimeError(f"命令失败：{' '.join(cmd)}\n{proc.stderr.strip()}")
     return proc.stdout.strip()
 
 
@@ -28,7 +29,10 @@ class GhClient:
         *,
         gh_token: str | None = None,
     ) -> int:
-        out = _run(
+        env = os.environ.copy()
+        if gh_token:
+            env["GH_TOKEN"] = gh_token
+        proc = subprocess.run(
             [
                 "gh",
                 "pr",
@@ -41,13 +45,18 @@ class GhClient:
                 title,
                 "--body",
                 body,
-                "--json",
-                "number",
             ],
-            gh_token=gh_token,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
         )
-        payload = json.loads(out)
-        return int(payload["number"])
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"命令失败：gh pr create\n{(proc.stderr or proc.stdout or '').strip()}"
+            )
+        blob = f"{proc.stdout or ''}\n{proc.stderr or ''}".strip()
+        return _pr_number_from_gh_create_stdout(blob)
 
     def approve_pr(
         self,
