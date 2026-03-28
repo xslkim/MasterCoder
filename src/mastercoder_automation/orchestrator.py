@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 
@@ -13,6 +14,8 @@ from .pr_human_gate import poll_human_pr_qa, poll_human_pr_review
 from .repo_ops import branch_slug, gh_pr_create_json, git_push_https
 from .state_store import StateStore
 
+_log = logging.getLogger(__name__)
+
 
 @dataclass
 class Orchestrator:
@@ -25,6 +28,8 @@ class Orchestrator:
         self._refresh_ready(state)
         target = self._pick_target(state, req_id)
         if target is None:
+            if req_id is not None:
+                raise ValueError(f"未找到 REQ：{req_id!r}（请检查 state 文件中的 req_id）")
             self.store.save(state)
             return state
         self._advance(target)
@@ -36,7 +41,18 @@ class Orchestrator:
         for req in state.requirements:
             if req.state != ReqState.PENDING:
                 continue
-            if all(by_id[dep].state == ReqState.DONE for dep in req.blocked_by if dep in by_id):
+            missing = [dep for dep in req.blocked_by if dep not in by_id]
+            if missing:
+                _log.warning(
+                    "REQ %s 的 blocked_by 含未知依赖 %s，保持 PENDING",
+                    req.req_id,
+                    missing,
+                )
+                continue
+            if req.blocked_by and all(by_id[dep].state == ReqState.DONE for dep in req.blocked_by):
+                req.state = ReqState.READY
+            elif not req.blocked_by:
+                # 无依赖的 PENDING 不应出现（初始化应直接 READY）；若出现则视为可推进
                 req.state = ReqState.READY
 
     def _pick_target(self, state: PipelineState, req_id: str | None) -> ReqRecord | None:
@@ -187,7 +203,14 @@ class Orchestrator:
                 or None
             )
             if req.pr_number:
-                self.gh.merge_pr(req.pr_number, gh_token=merge_tok)
+                try:
+                    self.gh.merge_pr(req.pr_number, gh_token=merge_tok)
+                except Exception as e:
+                    _log.warning(
+                        "合并 PR #%s 失败（可稍后在 GitHub 上手动合并）：%s",
+                        req.pr_number,
+                        e,
+                    )
 
     def _retry_or_block(self, req: ReqRecord, reason: str) -> None:
         req.retries += 1

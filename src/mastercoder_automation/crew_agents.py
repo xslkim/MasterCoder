@@ -8,6 +8,8 @@ try:
 except ImportError:  # pragma: no cover - exercised only without runtime dependency
     Agent = Crew = LLM = Process = Task = None  # type: ignore[assignment]
 
+from pydantic import ValidationError
+
 from .config import Settings
 from .models import AgentDecision, ReqRecord
 
@@ -32,9 +34,16 @@ def _extract_json(text: str) -> AgentDecision:
     start = text.find("{")
     end = text.rfind("}")
     if start == -1 or end == -1 or end <= start:
-        raise ValueError(f"LLM 输出不是合法 JSON：{text}")
-    payload = json.loads(text[start : end + 1])
-    return AgentDecision.model_validate(payload)
+        raise ValueError(f"LLM 输出不是合法 JSON：{text[:4000]}")
+    snippet = text[start : end + 1]
+    try:
+        payload = json.loads(snippet)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"LLM JSON 片段无法解析：{snippet[:2000]}") from e
+    try:
+        return AgentDecision.model_validate(payload)
+    except ValidationError as e:
+        raise ValueError(f"LLM JSON 字段不符合约定（verdict/reasons）：{e}") from e
 
 
 def dev_plan(req: ReqRecord, settings: Settings) -> str:

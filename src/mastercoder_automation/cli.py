@@ -23,7 +23,11 @@ def run_once(
     store = StateStore(settings.state_file)
     gh = GhClient(repo=settings.github_repo)
     orchestrator = Orchestrator(settings=settings, store=store, gh=gh)
-    state = orchestrator.run_once(req_id=req_id)
+    try:
+        state = orchestrator.run_once(req_id=req_id)
+    except ValueError as e:
+        print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
     print(json.dumps(state.model_dump(), indent=2))
 
 
@@ -91,8 +95,11 @@ def run_all(
 @app.command("init-state")
 def init_state() -> None:
     settings = load_settings()
-    template = "state/req-status.example.json"
-    data = open(template, "r", encoding="utf-8").read()
+    template = settings.repo_root / "state" / "req-status.example.json"
+    if not template.is_file():
+        print(f"[red]未找到状态模板：{template}（请从仓库根目录运行）[/red]")
+        raise typer.Exit(1)
+    data = template.read_text(encoding="utf-8")
     settings.state_file.parent.mkdir(parents=True, exist_ok=True)
     settings.state_file.write_text(data, encoding="utf-8")
     print(f"[green]已初始化状态文件：[/green] {settings.state_file}")

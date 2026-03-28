@@ -147,6 +147,9 @@ def run_dev_implementation_crew(req: ReqRecord, settings: Settings) -> tuple[str
         goal="通过真实文件修改与 Git 操作实现需求。",
         backstory=(
             "你在本地克隆目录中工作，只使用工具，绝不粘贴 API 密钥或 token。按任务步骤顺序执行。"
+            "不要新建 tests/test_*.py 测试文件，除非需求明确要求或确有必要；优先修改已有测试。"
+            "不要臆造不存在的模块、类名或 API（例如错误的 import）。"
+            "禁止修改 mastercoder_automation/gates.py、orchestrator、cli 等流水线核心文件，除非需求文档明确要求。"
         ),
         llm=_llm(settings),
         tools=tools,
@@ -161,7 +164,8 @@ def run_dev_implementation_crew(req: ReqRecord, settings: Settings) -> tuple[str
             "1) git_update_main\n"
             f"2) git_use_feature_branch，branch_name={branch!r}\n"
             "3) 实现：如需可 repo_read_file 读取 docs/requirements.md；"
-            "在 src/ 与 tests/ 下用 repo_write_file 修改代码。\n"
+            "主要在 src/ 下改代码；tests/ 仅在必要时小改已有测试。"
+            "禁止随意新建 tests/test_*.py（除非需求明确要求），避免重复、臆造 API 的测试文件。\n"
             "4) git_status，再 git_stage_all，再 git_commit_msg，说明类似 "
             f"feat({rid.lower()}): 简短描述\n"
             "5) run_local_quality_gates — 若以「失败」开头，修复问题后从第 3 步重复。\n"

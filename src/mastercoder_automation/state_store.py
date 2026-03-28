@@ -11,7 +11,13 @@ class StateStore:
         self.path = path
 
     def load(self) -> PipelineState:
-        data = json.loads(self.path.read_text(encoding="utf-8"))
+        try:
+            raw = self.path.read_text(encoding="utf-8")
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"状态文件不存在：{self.path}（可在仓库根目录执行：mc-auto init-state）"
+            ) from e
+        data = json.loads(raw)
         return PipelineState.model_validate(data)
 
     def save(self, state: PipelineState) -> None:
