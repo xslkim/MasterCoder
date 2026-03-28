@@ -10,6 +10,8 @@ DEFAULT_LLM_MODEL_NAME = "glm-5"
 DEFAULT_OPENAI_API_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4"
 # 单次补全上限；过小易导致工具调用/写文件被截断。可用环境变量 LLM_MAX_TOKENS 覆盖。
 DEFAULT_LLM_MAX_TOKENS = 4096
+# 门禁 pytest-cov 下限；单测未覆盖 LLM/gh 集成模块时可设 50；严格项目请 export COVERAGE_MIN=80。
+DEFAULT_COVERAGE_MIN = 50
 
 _log = logging.getLogger(__name__)
 
@@ -64,7 +66,7 @@ def load_settings() -> Settings:
     return Settings(
         model_name=DEFAULT_LLM_MODEL_NAME,
         github_repo=os.getenv("GITHUB_REPO", "xslkim/MasterCoder"),
-        coverage_min=_parse_positive_int("COVERAGE_MIN", 80, minimum=0),
+        coverage_min=_parse_positive_int("COVERAGE_MIN", DEFAULT_COVERAGE_MIN, minimum=0),
         state_file=_state_file_path(repo_root),
         repo_root=repo_root,
         openai_api_key=key,
@@ -72,7 +74,9 @@ def load_settings() -> Settings:
         llm_max_tokens=_parse_positive_int("LLM_MAX_TOKENS", DEFAULT_LLM_MAX_TOKENS, minimum=1),
         strict_human_review=_env_bool("AUTOMATION_STRICT_HUMAN_REVIEW"),
         strict_human_qa=_env_bool("AUTOMATION_STRICT_HUMAN_QA"),
-        human_poll_interval_sec=_parse_positive_int("AUTOMATION_HUMAN_POLL_INTERVAL_SEC", 30, minimum=1),
+        human_poll_interval_sec=_parse_positive_int(
+            "AUTOMATION_HUMAN_POLL_INTERVAL_SEC", 30, minimum=1
+        ),
         human_poll_timeout_sec=_parse_positive_int(
             "AUTOMATION_HUMAN_POLL_TIMEOUT_SEC", 3600, minimum=1
         ),
