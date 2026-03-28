@@ -133,9 +133,7 @@ def poll_human_pr_qa(
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
         try:
-            verdict = latest_qa_comment_from_login(
-                github_repo, pr_number, test_login, token
-            )
+            verdict = latest_qa_comment_from_login(github_repo, pr_number, test_login, token)
         except RuntimeError:
             verdict = "PENDING"
         if verdict in ("QA_PASSED", "QA_FAILED"):

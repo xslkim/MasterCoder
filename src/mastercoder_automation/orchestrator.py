@@ -158,9 +158,7 @@ class Orchestrator:
                 )
                 if qa_verdict == "TIMEOUT":
                     req.state = ReqState.BLOCKED
-                    req.last_error = (
-                        f"等待 {test_login} 的 QA 评论超时（{self.settings.human_poll_timeout_sec} 秒）"
-                    )
+                    req.last_error = f"等待 {test_login} 的 QA 评论超时（{self.settings.human_poll_timeout_sec} 秒）"
                     return
                 if qa_verdict == "QA_FAILED":
                     self._retry_or_block(

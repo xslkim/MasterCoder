@@ -20,4 +20,3 @@ class StateStore:
             state.model_dump_json(indent=2),
             encoding="utf-8",
         )
-

@@ -34,7 +34,9 @@ def test_ready_transitions_when_dependencies_done(monkeypatch, tmp_path: Path) -
     state = PipelineState(
         requirements=[
             ReqRecord(req_id="REQ-01", title="base", state=ReqState.DONE),
-            ReqRecord(req_id="REQ-02", title="child", blocked_by=["REQ-01"], state=ReqState.PENDING),
+            ReqRecord(
+                req_id="REQ-02", title="child", blocked_by=["REQ-01"], state=ReqState.PENDING
+            ),
         ]
     )
     state_file = _make_state_file(tmp_path, state)
@@ -96,4 +98,3 @@ def test_failures_go_to_fixing_then_blocked(monkeypatch, tmp_path: Path) -> None
     req = new_state.requirements[0]
     assert req.state == ReqState.BLOCKED
     assert req.last_error is not None
-

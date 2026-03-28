@@ -48,4 +48,3 @@ def run_quality_gates(coverage_min: int, cwd: Path | None = None) -> GateResult:
         if code != 0:
             return GateResult(False, "\n".join(logs))
     return GateResult(True, "\n".join(logs))
-

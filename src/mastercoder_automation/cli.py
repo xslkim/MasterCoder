@@ -72,7 +72,9 @@ def run_all(
                 f"（当前={rec.state.value}）[/cyan]"
             )
         else:
-            work = [r.req_id for r in state.requirements if r.state in (ReqState.READY, ReqState.FIXING)]
+            work = [
+                r.req_id for r in state.requirements if r.state in (ReqState.READY, ReqState.FIXING)
+            ]
             if not work:
                 print(f"[green]已无 READY/FIXING，共 {round_i} 轮后结束。[/green]")
                 break

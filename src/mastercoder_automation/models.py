@@ -36,4 +36,3 @@ class PipelineState(BaseModel):
 class AgentDecision(BaseModel):
     verdict: Literal["APPROVED", "REJECTED", "QA_PASSED", "QA_FAILED"]
     reasons: list[str] = Field(default_factory=list)
-

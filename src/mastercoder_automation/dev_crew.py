@@ -146,8 +146,7 @@ def run_dev_implementation_crew(req: ReqRecord, settings: Settings) -> tuple[str
         role="开发智能体",
         goal="通过真实文件修改与 Git 操作实现需求。",
         backstory=(
-            "你在本地克隆目录中工作，只使用工具，绝不粘贴 API 密钥或 token。"
-            "按任务步骤顺序执行。"
+            "你在本地克隆目录中工作，只使用工具，绝不粘贴 API 密钥或 token。按任务步骤顺序执行。"
         ),
         llm=_llm(settings),
         tools=tools,

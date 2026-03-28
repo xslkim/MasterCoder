@@ -48,4 +48,3 @@ def load_settings() -> Settings:
         human_poll_interval_sec=int(os.getenv("AUTOMATION_HUMAN_POLL_INTERVAL_SEC", "30")),
         human_poll_timeout_sec=int(os.getenv("AUTOMATION_HUMAN_POLL_TIMEOUT_SEC", "3600")),
     )
-
