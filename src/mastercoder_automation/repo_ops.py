@@ -10,6 +10,25 @@ from shutil import which
 from .models import ReqRecord
 
 
+def _pr_number_from_gh_create_stdout(stdout: str) -> int:
+    """解析 `gh pr create` 输出：新版可能为 JSON，旧版为一行 PR URL。"""
+    text = (stdout or "").strip()
+    if not text:
+        raise ValueError("gh pr create 无输出")
+    if text.startswith("{"):
+        try:
+            return int(json.loads(text)["number"])
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            pass
+    m = re.search(r"github\.com/[^/\s]+/[^/\s]+/pull/(\d+)", text)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"/pull/(\d+)", text)
+    if m:
+        return int(m.group(1))
+    raise ValueError(f"无法从 gh pr create 输出解析 PR 编号：{text[:800]!r}")
+
+
 def branch_slug(req: ReqRecord) -> str:
     rid = req.req_id.replace("_", "-").lower()
     s = req.title.lower()
@@ -135,9 +154,10 @@ def git_push_https(repo_root: Path, branch: str, token: str, github_repo: str) -
 
 def gh_pr_create_json(repo: str, head: str, title: str, body: str, token: str) -> int:
     if which("gh") is None:
-        raise RuntimeError(
-            "未找到 gh（GitHub CLI），无法创建 PR。请安装：https://cli.github.com/"
-        )
+        raise RuntimeError("未找到 gh（GitHub CLI），无法创建 PR。请安装：https://cli.github.com/")
+    env = {**os.environ}
+    if token:
+        env["GH_TOKEN"] = token
     proc = subprocess.run(
         [
             "gh",
@@ -151,15 +171,14 @@ def gh_pr_create_json(repo: str, head: str, title: str, body: str, token: str) -
             title,
             "--body",
             body,
-            "--json",
-            "number",
         ],
         capture_output=True,
         text=True,
-        env={**os.environ, "GH_TOKEN": token},
+        env=env,
         check=False,
     )
     if proc.returncode != 0:
         raise RuntimeError((proc.stderr or proc.stdout or "").strip())
-    payload = json.loads(proc.stdout)
-    return int(payload["number"])
+    # 部分 gh 版本把 PR URL 打在 stdout 或 stderr
+    blob = f"{proc.stdout or ''}\n{proc.stderr or ''}".strip()
+    return _pr_number_from_gh_create_stdout(blob)
