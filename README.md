@@ -4,6 +4,8 @@ Deterministic multi-agent software delivery framework built with CrewAI.
 
 **详细教程（环境变量、冒烟测试、`mc-auto`、评审结论与已知缺口）：** [docs/automation-tutorial.md](docs/automation-tutorial.md)
 
+**`mastercoder_automation` 包结构、设计原因、依赖与全新 Ubuntu 搭建：** [docs/mastercoder-automation.md](docs/mastercoder-automation.md)
+
 ## What it provides
 
 - Deterministic REQ state machine (`PENDING -> READY -> DEVELOPING -> REVIEWING -> TESTING -> DONE/FIXING/BLOCKED`)

@@ -4,6 +4,7 @@ import logging
 import os
 from dataclasses import dataclass
 
+from . import repo_ops
 from .config import Settings
 from .crew_agents import qa_decision, review_decision
 from .dev_crew import run_dev_implementation_crew
@@ -78,14 +79,51 @@ class Orchestrator:
                 return req
         return None
 
+    def _validate_req_branch(self, req: ReqRecord) -> str | None:
+        branch = req.branch or "HEAD"
+        try:
+            changed_files = repo_ops.git_changed_files_against_default(
+                self.settings.repo_root, branch
+            )
+        except Exception as e:
+            return f"无法检查分支变更：{e}"
+        if not any(path.startswith("tests/") for path in changed_files):
+            return (
+                "本轮开发未在 tests/ 下新增或修改测试文件；"
+                "每个 REQ 都必须先根据需求文档编写或更新测试用例。"
+            )
+        try:
+            commits_ahead = repo_ops.git_commits_ahead_of_default(self.settings.repo_root, branch)
+        except Exception as e:
+            return f"无法检查分支提交数量：{e}"
+        if commits_ahead <= 0:
+            return "功能分支相对默认分支没有新的 commit；请先提交测试与实现，再创建 PR。"
+        return None
+
+    def _prepare_req_branch(self, req: ReqRecord) -> str | None:
+        if not req.branch:
+            req.branch = branch_slug(req)
+        try:
+            repo_ops.git_checkout_main_pull(self.settings.repo_root)
+            repo_ops.git_create_branch(self.settings.repo_root, req.branch)
+        except Exception as e:
+            return f"准备开发分支失败：{e}"
+        return None
+
     def _advance(self, req: ReqRecord) -> None:
         if req.state in {ReqState.READY, ReqState.FIXING}:
             req.state = ReqState.DEVELOPING
-            if not req.branch:
-                req.branch = branch_slug(req)
+            branch_prep_error = self._prepare_req_branch(req)
+            if branch_prep_error:
+                self._retry_or_block(req, branch_prep_error)
+                return
             summary, pr_num = run_dev_implementation_crew(req, self.settings)
             if pr_num is not None:
                 req.pr_number = pr_num
+            branch_error = self._validate_req_branch(req)
+            if branch_error:
+                self._retry_or_block(req, branch_error)
+                return
             gate = run_quality_gates(self.settings.coverage_min, cwd=self.settings.repo_root)
             if not gate.passed:
                 self._retry_or_block(req, gate.output)
@@ -168,7 +206,9 @@ class Orchestrator:
                 except RuntimeError as e:
                     self._retry_or_block(
                         req,
-                        _format_gh_token_permission_hint("GitHub 提交 Review（approve/request_changes）", str(e)),
+                        _format_gh_token_permission_hint(
+                            "GitHub 提交 Review（approve/request_changes）", str(e)
+                        ),
                     )
                     return
                 if review.verdict != "APPROVED":

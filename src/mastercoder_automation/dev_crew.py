@@ -32,6 +32,14 @@ def build_dev_tools(ctx: DevContext) -> list:
         except Exception as e:
             return f"失败：{e}"
 
+    @tool("repo_read_requirement")
+    def repo_read_requirement(req_id: str) -> str:
+        """按 REQ-ID 读取 docs/requirements.md 中对应需求章节。"""
+        try:
+            return repo_ops.repo_read_requirement_section(root, req_id.strip())
+        except Exception as e:
+            return f"失败：{e}"
+
     @tool("repo_write_file")
     def repo_write_file(relative_path: str, content: str) -> str:
         """写入或覆盖仓库文件（UTF-8），自动创建父目录。路径禁止含 ..。"""
@@ -40,27 +48,29 @@ def build_dev_tools(ctx: DevContext) -> list:
         except Exception as e:
             return f"失败：{e}"
 
-    @tool("git_update_main")
-    def git_update_main() -> str:
-        """拉取远端并快进合并默认分支（git fetch；checkout main 或 master；pull --ff-only）。"""
-        try:
-            return repo_ops.git_checkout_main_pull(root)
-        except Exception as e:
-            return f"失败：{e}"
-
-    @tool("git_use_feature_branch")
-    def git_use_feature_branch(branch_name: str) -> str:
-        """创建并切换到功能分支；若已存在则检出。"""
-        try:
-            return repo_ops.git_create_branch(root, branch_name.strip())
-        except Exception as e:
-            return f"失败：{e}"
-
     @tool("git_status")
     def git_status() -> str:
         """查看简短 git 状态（git status --short）。"""
         try:
             return repo_ops.git_status_short(root)
+        except Exception as e:
+            return f"失败：{e}"
+
+    @tool("git_changed_files_against_default")
+    def git_changed_files_against_default() -> str:
+        """查看当前分支相对默认分支（main/master）的变更文件列表。"""
+        try:
+            files = repo_ops.git_changed_files_against_default(root, ctx.branch)
+            return "\n".join(files) if files else "(no changes)"
+        except Exception as e:
+            return f"失败：{e}"
+
+    @tool("git_commits_ahead_of_default")
+    def git_commits_ahead_of_default() -> str:
+        """查看当前分支相对默认分支领先的提交数。"""
+        try:
+            count = repo_ops.git_commits_ahead_of_default(root, ctx.branch)
+            return str(count)
         except Exception as e:
             return f"失败：{e}"
 
@@ -124,10 +134,11 @@ def build_dev_tools(ctx: DevContext) -> list:
 
     return [
         repo_read_file,
+        repo_read_requirement,
         repo_write_file,
-        git_update_main,
-        git_use_feature_branch,
         git_status,
+        git_changed_files_against_default,
+        git_commits_ahead_of_default,
         git_stage_all,
         git_commit_msg,
         run_local_quality_gates,
@@ -147,7 +158,9 @@ def run_dev_implementation_crew(req: ReqRecord, settings: Settings) -> tuple[str
         goal="通过真实文件修改与 Git 操作实现需求。",
         backstory=(
             "你在本地克隆目录中工作，只使用工具，绝不粘贴 API 密钥或 token。按任务步骤顺序执行。"
-            "不要新建 tests/test_*.py 测试文件，除非需求明确要求或确有必要；优先修改已有测试。"
+            "每个 REQ 都必须先根据 docs/requirements.md 为当前需求编写或更新测试，再实现代码。"
+            "当没有合适的已有测试时，可以新建聚焦当前需求的 tests/test_*.py。"
+            "测试必须来自需求文档里的功能规格、交付物、Review 检查项或验收标准，避免空泛或重复测试。"
             "不要臆造不存在的模块、类名或 API（例如错误的 import）。"
             "禁止修改 mastercoder_automation/gates.py、orchestrator、cli 等流水线核心文件，除非需求文档明确要求。"
         ),
@@ -161,15 +174,18 @@ def run_dev_implementation_crew(req: ReqRecord, settings: Settings) -> tuple[str
             f"需求：{rid} — {req.title}\n\n"
             f"仓库根目录：{settings.repo_root}\n"
             f"分支名必须完全一致：{branch}\n\n"
-            "1) git_update_main\n"
-            f"2) git_use_feature_branch，branch_name={branch!r}\n"
-            "3) 实现：如需可 repo_read_file 读取 docs/requirements.md；"
-            "主要在 src/ 下改代码；tests/ 仅在必要时小改已有测试。"
-            "禁止随意新建 tests/test_*.py（除非需求明确要求），避免重复、臆造 API 的测试文件。\n"
-            "4) git_status，再 git_stage_all，再 git_commit_msg，说明类似 "
+            "你启动时已经位于正确的功能分支上，无需自行切换分支。\n"
+            f"1) 先用 repo_read_requirement，req_id={rid!r}，直接读取 {rid} 的需求章节；只有在需要更多上下文时才用 repo_read_file 阅读整个文档。\n"
+            "2) 先在 tests/ 下编写或更新当前 REQ 的测试用例，确保测试断言直接对应需求文档。"
+            "没有合适的现有测试时，可以新建一个聚焦当前需求的 tests/test_*.py。\n"
+            "3) 再修改 src/ 下实现代码，让第 2 步测试通过；避免改动与当前需求无关的文件。\n"
+            "4) git_status，然后 git_changed_files_against_default；确认输出中包含 tests/ 下的测试文件。\n"
+            "5) git_stage_all，再 git_commit_msg，说明类似 "
             f"feat({rid.lower()}): 简短描述\n"
-            "5) run_local_quality_gates — 若以「失败」开头，修复问题后从第 3 步重复。\n"
-            "6) 当「通过」时：git_push_branch，再 github_open_pull_request，标题与正文清晰并引用 "
+            "6) run_local_quality_gates — 若以「失败」开头，修复问题后从第 2 步或第 3 步继续。\n"
+            "7) git_commits_ahead_of_default；结果必须大于 0，否则说明还没有形成可推送提交。\n"
+            "8) 只有当 tests/ 已改动、质量门禁通过、且领先提交数大于 0 时，才允许 git_push_branch，"
+            "再 github_open_pull_request，标题与正文清晰并引用 "
             f"{rid}。\n"
             "最终回答：简短说明改动与 PR 结果（成功 PR #… 或 失败）。"
         ),
