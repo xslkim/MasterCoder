@@ -25,6 +25,13 @@ set +a
 export REPO_ROOT="$ROOT"
 export GITHUB_REPO="${GITHUB_REPO:-xslkim/MasterCoder}"
 
+for _need in git gh; do
+  if ! command -v "$_need" >/dev/null 2>&1; then
+    echo "错误：未找到命令 '$_need'。流水线需要 git 与 GitHub CLI（gh）。安装：https://cli.github.com/" >&2
+    exit 1
+  fi
+done
+
 RUN_SMOKE=0
 MC_MODE="all"
 REQ_ID=""

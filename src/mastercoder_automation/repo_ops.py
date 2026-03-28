@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from shutil import which
 
 from .models import ReqRecord
 
@@ -133,6 +134,10 @@ def git_push_https(repo_root: Path, branch: str, token: str, github_repo: str) -
 
 
 def gh_pr_create_json(repo: str, head: str, title: str, body: str, token: str) -> int:
+    if which("gh") is None:
+        raise RuntimeError(
+            "未找到 gh（GitHub CLI），无法创建 PR。请安装：https://cli.github.com/"
+        )
     proc = subprocess.run(
         [
             "gh",

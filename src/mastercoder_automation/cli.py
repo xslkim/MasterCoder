@@ -8,6 +8,7 @@ from rich import print
 
 from .config import load_settings
 from .gh_client import GhClient
+from .preflight import check_automation_prerequisites
 from .models import ReqState
 from .orchestrator import Orchestrator
 from .state_store import StateStore
@@ -20,6 +21,11 @@ def run_once(
     req_id: str | None = typer.Option(default=None, help="只处理指定的 REQ 编号"),
 ) -> None:
     settings = load_settings()
+    try:
+        check_automation_prerequisites()
+    except RuntimeError as e:
+        print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
     store = StateStore(settings.state_file)
     gh = GhClient(repo=settings.github_repo)
     orchestrator = Orchestrator(settings=settings, store=store, gh=gh)
@@ -46,6 +52,11 @@ def run_all(
 ) -> None:
     """反复执行 run-once，直到没有 READY/FIXING（全项目），或单个 REQ 结束。"""
     settings = load_settings()
+    try:
+        check_automation_prerequisites()
+    except RuntimeError as e:
+        print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
     store = StateStore(settings.state_file)
     gh = GhClient(repo=settings.github_repo)
     orchestrator = Orchestrator(settings=settings, store=store, gh=gh)

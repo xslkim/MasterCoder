@@ -4,19 +4,17 @@
       "req_id": "REQ-01",
       "title": "项目脚手架与入口程序",
       "blocked_by": [],
-      "state": "FIXING",
-      "retries": 2,
+      "state": "READY",
+      "retries": 0,
       "max_retries": 3,
       "branch": "feat/req-01-change",
       "pr_number": null,
-      "last_error": "$ ruff format src/ tests/\n19 files left unchanged\n\n\n$ ruff check src/ tests/\nAll checks passed!\n\n\n$ pytest tests/ -v --tb=short --cov=mastercoder_automation --cov-report=term --cov-report=xml:reports/coverage.xml --cov-fail-under=80 --junitxml=reports/junit.xml\n============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.0.2, pluggy-1.6.0 -- /usr/bin/python3\ncachedir: .pytest_cache\nrootdir: /home/xsl/code/MasterCoder\nconfigfile: pyproject.toml\nplugins: anyio-4.12.1, cov-7.1.0\ncollecting ... collected 12 items\n\ntests/test_config_strict.py::test_strict_human_flags_from_env PASSED     [  8%]\ntests/test_orchestrator.py::test_ready_transitions_when_dependencies_done PASSED [ 16%]\ntests/test_orchestrator.py::test_failures_go_to_fixing_then_blocked PASSED [ 25%]\ntests/test_orchestrator.py::test_run_once_unknown_req_id_raises PASSED   [ 33%]\ntests/test_orchestrator.py::test_blocked_by_unknown_dependency_stays_pending PASSED [ 41%]\ntests/test_orchestrator.py::test_merge_failure_does_not_crash PASSED     [ 50%]\ntests/test_repo_ops.py::test_branch_slug PASSED                          [ 58%]\ntests/test_repo_ops.py::test_resolve_rejects_traversal PASSED            [ 66%]\ntests/test_req01.py::test_startup_and_exit PASSED                        [ 75%]\ntests/test_req01.py::test_empty_input_skip PASSED                        [ 83%]\ntests/test_req01.py::test_echo_input PASSED                              [ 91%]\ntests/test_req01.py::test_keyboard_interrupt_exits_gracefully PASSED     [100%]\nERROR: Coverage failure: total of 43 is less than fail-under=80\n\n\n------- generated xml file: /home/xsl/code/MasterCoder/reports/junit.xml -------\n================================ tests coverage ================================\n_______________ coverage: platform linux, python 3.10.12-final-0 _______________\n\nName                                          Stmts   Miss  Cover\n----------------------------------------------------------------"
+      "last_error": null
     },
     {
       "req_id": "REQ-02",
       "title": "配置系统",
-      "blocked_by": [
-        "REQ-01"
-      ],
+      "blocked_by": ["REQ-01"],
       "state": "PENDING",
       "retries": 0,
       "max_retries": 3,
