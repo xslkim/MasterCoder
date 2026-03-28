@@ -54,6 +54,17 @@ def repo_read_text(repo_root: Path, relative_path: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def repo_read_requirement_section(
+    repo_root: Path, req_id: str, relative_path: str = "docs/requirements.md"
+) -> str:
+    text = repo_read_text(repo_root, relative_path)
+    pattern = rf"^##\s+{re.escape(req_id)}[：:].*?(?=^##\s+REQ-\d+[：:]|\Z)"
+    match = re.search(pattern, text, re.MULTILINE | re.DOTALL)
+    if not match:
+        raise ValueError(f"未在 {relative_path} 中找到需求章节：{req_id}")
+    return match.group(0).strip()
+
+
 def repo_write_text(repo_root: Path, relative_path: str, content: str) -> str:
     path = resolve_under_repo(repo_root, relative_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -95,6 +106,29 @@ def git_create_branch(repo_root: Path, branch: str) -> str:
     except RuntimeError:
         _git(repo_root, "checkout", branch)
     return f"成功：当前分支 {branch}"
+
+
+def default_branch_name(repo_root: Path) -> str:
+    try:
+        _git(repo_root, "rev-parse", "--verify", "main")
+        return "main"
+    except RuntimeError:
+        _git(repo_root, "rev-parse", "--verify", "master")
+        return "master"
+
+
+def git_changed_files_against_default(repo_root: Path, branch: str | None = None) -> list[str]:
+    ref = branch or "HEAD"
+    base = default_branch_name(repo_root)
+    out = _git(repo_root, "diff", "--name-only", f"{base}...{ref}")
+    return [line.strip() for line in out.splitlines() if line.strip()]
+
+
+def git_commits_ahead_of_default(repo_root: Path, branch: str | None = None) -> int:
+    ref = branch or "HEAD"
+    base = default_branch_name(repo_root)
+    out = _git(repo_root, "rev-list", "--count", f"{base}..{ref}")
+    return int(out or "0")
 
 
 def git_status_short(repo_root: Path) -> str:

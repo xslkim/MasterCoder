@@ -14,13 +14,15 @@
     {
       "req_id": "REQ-02",
       "title": "配置系统",
-      "blocked_by": ["REQ-01"],
-      "state": "READY",
-      "retries": 0,
+      "blocked_by": [
+        "REQ-01"
+      ],
+      "state": "FIXING",
+      "retries": 1,
       "max_retries": 3,
-      "branch": null,
+      "branch": "feat/req-02-change",
       "pr_number": null,
-      "last_error": null
+      "last_error": "本轮开发未在 tests/ 下新增或修改测试文件；每个 REQ 都必须先根据需求文档编写或更新测试用例。"
     }
   ]
 }
