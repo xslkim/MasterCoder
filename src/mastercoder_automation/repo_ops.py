@@ -88,16 +88,11 @@ def _git(repo_root: Path, *args: str, env: dict[str, str] | None = None) -> str:
 
 
 def git_checkout_main_pull(repo_root: Path) -> str:
+    base = default_branch_name(repo_root)
     _git(repo_root, "fetch", "origin")
-    try:
-        _git(repo_root, "checkout", "main")
-    except RuntimeError:
-        _git(repo_root, "checkout", "master")
-    try:
-        _git(repo_root, "pull", "origin", "main", "--ff-only")
-    except RuntimeError:
-        _git(repo_root, "pull", "origin", "master", "--ff-only")
-    return "成功：已更新默认分支"
+    _git(repo_root, "checkout", base)
+    _git(repo_root, "pull", "origin", base, "--ff-only")
+    return f"成功：已更新默认分支 {base}"
 
 
 def git_create_branch(repo_root: Path, branch: str) -> str:
@@ -106,6 +101,10 @@ def git_create_branch(repo_root: Path, branch: str) -> str:
     except RuntimeError:
         _git(repo_root, "checkout", branch)
     return f"成功：当前分支 {branch}"
+
+
+def git_current_branch(repo_root: Path) -> str:
+    return _git(repo_root, "branch", "--show-current").strip()
 
 
 def default_branch_name(repo_root: Path) -> str:
@@ -136,8 +135,16 @@ def git_status_short(repo_root: Path) -> str:
 
 
 def git_add_all(repo_root: Path) -> str:
-    _git(repo_root, "add", "-A")
-    return "成功：已执行 git add -A"
+    _git(
+        repo_root,
+        "add",
+        "-A",
+        "--",
+        ".",
+        ":(exclude)state/req-status.json",
+        ":(exclude).coverage",
+    )
+    return "成功：已执行 git add -A（已排除 state/req-status.json 与 .coverage）"
 
 
 def git_commit(repo_root: Path, message: str) -> str:

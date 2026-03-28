@@ -104,26 +104,43 @@ class Orchestrator:
         if not req.branch:
             req.branch = branch_slug(req)
         try:
+            if repo_ops.git_current_branch(self.settings.repo_root) == req.branch:
+                return None
             repo_ops.git_checkout_main_pull(self.settings.repo_root)
             repo_ops.git_create_branch(self.settings.repo_root, req.branch)
         except Exception as e:
             return f"准备开发分支失败：{e}"
         return None
 
+    def _can_resume_existing_branch(self, req: ReqRecord) -> bool:
+        if not req.branch:
+            return False
+        try:
+            if repo_ops.git_current_branch(self.settings.repo_root) != req.branch:
+                return False
+        except Exception:
+            return False
+        return self._validate_req_branch(req) is None
+
     def _advance(self, req: ReqRecord) -> None:
         if req.state in {ReqState.READY, ReqState.FIXING}:
             req.state = ReqState.DEVELOPING
-            branch_prep_error = self._prepare_req_branch(req)
-            if branch_prep_error:
-                self._retry_or_block(req, branch_prep_error)
-                return
-            summary, pr_num = run_dev_implementation_crew(req, self.settings)
-            if pr_num is not None:
-                req.pr_number = pr_num
-            branch_error = self._validate_req_branch(req)
-            if branch_error:
-                self._retry_or_block(req, branch_error)
-                return
+            if self._can_resume_existing_branch(req):
+                summary = (
+                    "检测到当前功能分支已包含测试变更和有效提交，跳过开发 Agent，直接继续后续流程。"
+                )
+            else:
+                branch_prep_error = self._prepare_req_branch(req)
+                if branch_prep_error:
+                    self._retry_or_block(req, branch_prep_error)
+                    return
+                summary, pr_num = run_dev_implementation_crew(req, self.settings)
+                if pr_num is not None:
+                    req.pr_number = pr_num
+                branch_error = self._validate_req_branch(req)
+                if branch_error:
+                    self._retry_or_block(req, branch_error)
+                    return
             gate = run_quality_gates(self.settings.coverage_min, cwd=self.settings.repo_root)
             if not gate.passed:
                 self._retry_or_block(req, gate.output)

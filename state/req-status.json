@@ -17,12 +17,12 @@
       "blocked_by": [
         "REQ-01"
       ],
-      "state": "FIXING",
+      "state": "DONE",
       "retries": 1,
       "max_retries": 3,
       "branch": "feat/req-02-change",
-      "pr_number": null,
-      "last_error": "本轮开发未在 tests/ 下新增或修改测试文件；每个 REQ 都必须先根据需求文档编写或更新测试用例。"
+      "pr_number": 4,
+      "last_error": "准备开发分支失败：git 命令失败 checkout main\nerror: Your local changes to the following files would be overwritten by checkout:\n\tsrc/mastercoder_automation/repo_ops.py\n\tstate/req-status.json\n\ttests/test_repo_ops.py\nPlease commit your changes or stash them before you switch branches.\nAborting"
     }
   ]
 }

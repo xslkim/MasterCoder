@@ -46,6 +46,15 @@ def test_default_branch_name_prefers_main(monkeypatch, tmp_path: Path) -> None:
     assert calls == [("rev-parse", "--verify", "main")]
 
 
+def test_git_current_branch(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(
+        repo_ops,
+        "_git",
+        lambda _repo_root, *args, env=None: "feat/req-02-change\n",
+    )
+    assert repo_ops.git_current_branch(tmp_path) == "feat/req-02-change"
+
+
 def test_default_branch_name_falls_back_to_master(monkeypatch, tmp_path: Path) -> None:
     calls: list[tuple[str, ...]] = []
 
@@ -99,3 +108,44 @@ def test_repo_read_requirement_section_extracts_single_req(tmp_path: Path) -> No
     assert out.startswith("## REQ-02：Two")
     assert "beta" in out
     assert "REQ-03" not in out
+
+
+def test_git_checkout_main_pull_uses_detected_default_branch(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def fake_git(_repo_root: Path, *args: str, env=None) -> str:
+        calls.append(args)
+        if args[:3] == ("rev-parse", "--verify", "main"):
+            return "main-sha"
+        return "ok"
+
+    monkeypatch.setattr(repo_ops, "_git", fake_git)
+    assert repo_ops.git_checkout_main_pull(tmp_path) == "成功：已更新默认分支 main"
+    assert calls == [
+        ("rev-parse", "--verify", "main"),
+        ("fetch", "origin"),
+        ("checkout", "main"),
+        ("pull", "origin", "main", "--ff-only"),
+    ]
+
+
+def test_git_add_all_excludes_state_and_coverage(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def fake_git(_repo_root: Path, *args: str, env=None) -> str:
+        calls.append(args)
+        return "ok"
+
+    monkeypatch.setattr(repo_ops, "_git", fake_git)
+    msg = repo_ops.git_add_all(tmp_path)
+    assert "state/req-status.json" in msg
+    assert calls == [
+        (
+            "add",
+            "-A",
+            "--",
+            ".",
+            ":(exclude)state/req-status.json",
+            ":(exclude).coverage",
+        )
+    ]
