@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 本机一键开跑完整流水线：加载 .env.sh，设置 REPO_ROOT / GITHUB_REPO，默认不冒烟，反复 mc-auto 直到无 READY/FIXING。
+# 本机一键开跑完整流水线：加载 .env.bash，设置 REPO_ROOT / GITHUB_REPO，默认不冒烟，反复 mc-auto 直到无 READY/FIXING。
 # 用法：
 #   ./run-automation.sh                      # run-all（整份 state 里所有可推进的 REQ）
 #   ./run-automation.sh REQ-01               # run-all 只盯一个 REQ 直到 DONE/BLOCKED/PENDING
@@ -12,14 +12,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-if [[ ! -f .env.sh ]]; then
-  echo "error: 未找到 $ROOT/.env.sh，请先创建并填入密钥" >&2
+if [[ ! -f .env.bash ]]; then
+  echo "错误：未找到 $ROOT/.env.bash，请先创建并填入密钥" >&2
   exit 1
 fi
 
 set -a
 # shellcheck source=/dev/null
-source ".env.sh"
+source ".env.bash"
 set +a
 
 export REPO_ROOT="$ROOT"
@@ -39,7 +39,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --req-id)
-      [[ $# -ge 2 ]] || { echo "error: --req-id 需要参数" >&2; exit 1; }
+      [[ $# -ge 2 ]] || { echo "错误：--req-id 需要参数" >&2; exit 1; }
       REQ_ID="$2"
       shift 2
       ;;

@@ -19,13 +19,14 @@ dev = [
 
 [project.scripts]
 mc-auto = "mastercoder_automation.cli:app"
+mastercoder = "mastercoder.main:main"
 
 [build-system]
 requires = ["hatchling>=1.25.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mastercoder_automation"]
+packages = ["src/mastercoder_automation", "src/mastercoder"]
 
 [tool.ruff]
 line-length = 100

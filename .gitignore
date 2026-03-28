@@ -1,4 +1,5 @@
 .env.sh
+.env.bash
 .env
 __pycache__/
 .pytest_cache/

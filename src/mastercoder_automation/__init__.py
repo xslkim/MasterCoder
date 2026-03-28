@@ -1,2 +1,1 @@
-"""MasterCoder automation framework package."""
-
+"""MasterCoder 自动化编排包。"""

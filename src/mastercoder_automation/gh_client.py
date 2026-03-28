@@ -12,7 +12,7 @@ def _run(cmd: list[str], gh_token: str | None = None) -> str:
         env["GH_TOKEN"] = gh_token
     proc = subprocess.run(cmd, capture_output=True, text=True, env=env, check=False)
     if proc.returncode != 0:
-        raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{proc.stderr.strip()}")
+        raise RuntimeError(f"命令失败：{' '.join(cmd)}\n{proc.stderr.strip()}")
     return proc.stdout.strip()
 
 

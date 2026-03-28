@@ -22,7 +22,18 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 from shutil import which
+
+_root = Path(__file__).resolve().parents[1]
+_src = _root / "src"
+if _src.is_dir() and str(_src) not in sys.path:
+    sys.path.insert(0, str(_src))
+
+from mastercoder_automation.config import (  # noqa: E402
+    DEFAULT_LLM_MODEL_NAME,
+    DEFAULT_OPENAI_API_BASE_URL,
+)
 
 
 def _api_user_login(token: str) -> tuple[bool, str]:
@@ -111,13 +122,12 @@ def main() -> int:
             "GIT_AGENT_EMAIL_TEST",
         )
 
-    model = (os.environ.get("MODEL_NAME") or "").strip()
+    model = DEFAULT_LLM_MODEL_NAME
     api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
-    base_url = (os.environ.get("OPENAI_API_BASE_URL") or "").strip().rstrip("/")
-    if not (model and api_key and base_url):
+    base_url = DEFAULT_OPENAI_API_BASE_URL.rstrip("/")
+    if not api_key:
         print(
-            "error: need OPENAI_API_KEY, OPENAI_API_BASE_URL, MODEL_NAME "
-            "(same as Crew LLM smoke test)",
+            "error: need OPENAI_API_KEY (model/base URL use mastercoder_automation.config defaults)",
             file=sys.stderr,
         )
         return 1

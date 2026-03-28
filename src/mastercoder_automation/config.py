@@ -4,6 +4,10 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+# 智谱 GLM Coding API（OpenAI 兼容）：模型与 Base URL 固定，仅需设置环境变量 OPENAI_API_KEY。
+DEFAULT_LLM_MODEL_NAME = "glm-5"
+DEFAULT_OPENAI_API_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4"
+
 
 def _env_bool(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in ("1", "true", "yes", "on")
@@ -29,9 +33,9 @@ class Settings:
 
 def load_settings() -> Settings:
     key = (os.getenv("OPENAI_API_KEY") or "").strip() or None
-    base = (os.getenv("OPENAI_API_BASE_URL") or "").strip().rstrip("/") or None
+    base = DEFAULT_OPENAI_API_BASE_URL.strip().rstrip("/")
     return Settings(
-        model_name=os.getenv("MODEL_NAME", "gpt-4o-mini"),
+        model_name=DEFAULT_LLM_MODEL_NAME,
         github_repo=os.getenv("GITHUB_REPO", "xslkim/MasterCoder"),
         coverage_min=int(os.getenv("COVERAGE_MIN", "80")),
         state_file=Path(os.getenv("STATE_FILE", "state/req-status.json")),
