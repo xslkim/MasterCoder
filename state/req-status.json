@@ -30,12 +30,12 @@
       "blocked_by": [
         "REQ-02"
       ],
-      "state": "FIXING",
-      "retries": 2,
+      "state": "DONE",
+      "retries": 0,
       "max_retries": 3,
       "branch": "feat/req-03-openai-api",
       "pr_number": null,
-      "last_error": "$ ruff format src/ tests/\n1 file reformatted, 29 files left unchanged\n\n\u001b[1;31merror\u001b[0m\u001b[1m:\u001b[0m \u001b[1mFailed to parse\u001b[0m \u001b[1mtests/test_openai_client.py\u001b[0m\u001b[36m:\u001b[0m84\u001b[36m:\u001b[0m9\u001b[36m:\u001b[0m Expected an indented block after function definition\n"
+      "last_error": null
     },
     {
       "req_id": "REQ-04",
