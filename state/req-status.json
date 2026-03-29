@@ -13,16 +13,315 @@
     },
     {
       "req_id": "REQ-02",
-      "title": "配置系统",
+      "title": "配置系统（全局 + 环境变量）",
       "blocked_by": [
         "REQ-01"
       ],
       "state": "DONE",
-      "retries": 1,
+      "retries": 0,
       "max_retries": 3,
       "branch": "feat/req-02-change",
       "pr_number": 4,
-      "last_error": "准备开发分支失败：git 命令失败 checkout main\nerror: Your local changes to the following files would be overwritten by checkout:\n\tsrc/mastercoder_automation/repo_ops.py\n\tstate/req-status.json\n\ttests/test_repo_ops.py\nPlease commit your changes or stash them before you switch branches.\nAborting"
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-03",
+      "title": "OpenAI 兼容 API 客户端",
+      "blocked_by": [
+        "REQ-02"
+      ],
+      "state": "FIXING",
+      "retries": 2,
+      "max_retries": 3,
+      "branch": "feat/req-03-openai-api",
+      "pr_number": null,
+      "last_error": "$ ruff format src/ tests/\n1 file reformatted, 29 files left unchanged\n\n\u001b[1;31merror\u001b[0m\u001b[1m:\u001b[0m \u001b[1mFailed to parse\u001b[0m \u001b[1mtests/test_openai_client.py\u001b[0m\u001b[36m:\u001b[0m84\u001b[36m:\u001b[0m9\u001b[36m:\u001b[0m Expected an indented block after function definition\n"
+    },
+    {
+      "req_id": "REQ-04",
+      "title": "对话消息管理器",
+      "blocked_by": [
+        "REQ-03"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-05",
+      "title": "基础对话循环（接入 AI）",
+      "blocked_by": [
+        "REQ-04"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-06",
+      "title": "工具定义与注册框架",
+      "blocked_by": [
+        "REQ-05"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-07",
+      "title": "工具调用执行引擎",
+      "blocked_by": [
+        "REQ-06"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-08",
+      "title": "工具实现 — read_file",
+      "blocked_by": [
+        "REQ-07"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-09",
+      "title": "工具实现 — write_file",
+      "blocked_by": [
+        "REQ-08"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-10",
+      "title": "工具实现 — edit_file",
+      "blocked_by": [
+        "REQ-09"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-11",
+      "title": "工具实现 — list_files",
+      "blocked_by": [
+        "REQ-10"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-12",
+      "title": "工具实现 — search_files",
+      "blocked_by": [
+        "REQ-11"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-13",
+      "title": "工具实现 — run_command",
+      "blocked_by": [
+        "REQ-12"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-14",
+      "title": "工具调用集成 — 端到端对话",
+      "blocked_by": [
+        "REQ-13"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-15",
+      "title": "安全与权限控制",
+      "blocked_by": [
+        "REQ-14"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-16",
+      "title": "终端界面 — Markdown 渲染与代码高亮",
+      "blocked_by": [
+        "REQ-15"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-17",
+      "title": "终端界面 — 状态栏与 Token 统计",
+      "blocked_by": [
+        "REQ-16"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-18",
+      "title": "斜杠命令系统",
+      "blocked_by": [
+        "REQ-17"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-19",
+      "title": "项目级配置与 MASTERCODER.md",
+      "blocked_by": [
+        "REQ-18"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-20",
+      "title": "会话持久化与恢复",
+      "blocked_by": [
+        "REQ-19"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-21",
+      "title": "多行输入与输入历史",
+      "blocked_by": [
+        "REQ-20"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-22",
+      "title": "上下文管理 — 手动添加文件",
+      "blocked_by": [
+        "REQ-21"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-23",
+      "title": "错误处理与重试机制",
+      "blocked_by": [
+        "REQ-22"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-24",
+      "title": "命令行参数与启动选项",
+      "blocked_by": [
+        "REQ-23"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
+    },
+    {
+      "req_id": "REQ-25",
+      "title": "Git 仓库感知增强",
+      "blocked_by": [
+        "REQ-24"
+      ],
+      "state": "PENDING",
+      "retries": 0,
+      "max_retries": 3,
+      "branch": null,
+      "pr_number": null,
+      "last_error": null
     }
   ]
 }
