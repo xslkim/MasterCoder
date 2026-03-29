@@ -37,6 +37,11 @@ def branch_slug(req: ReqRecord) -> str:
     return f"feat/{rid}-{s}"
 
 
+def automation_worktree_path(repo_root: Path, branch: str) -> Path:
+    safe = branch.replace("/", "__")
+    return (repo_root.resolve() / ".automation-worktrees" / safe).resolve()
+
+
 def resolve_under_repo(repo_root: Path, relative: str) -> Path:
     root = repo_root.resolve()
     rel = relative.strip().replace("\\", "/")
@@ -107,6 +112,34 @@ def git_current_branch(repo_root: Path) -> str:
     return _git(repo_root, "branch", "--show-current").strip()
 
 
+def git_worktree_exists(repo_root: Path, branch: str) -> bool:
+    path = automation_worktree_path(repo_root, branch)
+    return path.exists() and (path / ".git").exists()
+
+
+def git_prepare_worktree(repo_root: Path, branch: str) -> Path:
+    repo_root = repo_root.resolve()
+    path = automation_worktree_path(repo_root, branch)
+    base = default_branch_name(repo_root)
+    _git(repo_root, "fetch", "origin")
+
+    if git_worktree_exists(repo_root, branch):
+        current = git_current_branch(path)
+        if current != branch:
+            raise RuntimeError(
+                f"已存在 worktree {path}，但当前分支为 {current}，期望 {branch}"
+            )
+        return path
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        _git(repo_root, "rev-parse", "--verify", branch)
+        _git(repo_root, "worktree", "add", str(path), branch)
+    except RuntimeError:
+        _git(repo_root, "worktree", "add", "-b", branch, str(path), base)
+    return path
+
+
 def default_branch_name(repo_root: Path) -> str:
     try:
         _git(repo_root, "rev-parse", "--verify", "main")
@@ -121,6 +154,17 @@ def git_changed_files_against_default(repo_root: Path, branch: str | None = None
     base = default_branch_name(repo_root)
     out = _git(repo_root, "diff", "--name-only", f"{base}...{ref}")
     return [line.strip() for line in out.splitlines() if line.strip()]
+
+
+def git_diff_against_default(
+    repo_root: Path, branch: str | None = None, pathspecs: list[str] | None = None
+) -> str:
+    ref = branch or "HEAD"
+    base = default_branch_name(repo_root)
+    args = ["diff", f"{base}...{ref}"]
+    if pathspecs:
+        args.extend(["--", *pathspecs])
+    return _git(repo_root, *args)
 
 
 def git_commits_ahead_of_default(repo_root: Path, branch: str | None = None) -> int:

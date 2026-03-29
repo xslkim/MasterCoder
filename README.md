@@ -56,3 +56,4 @@ mc-auto run-once --req-id REQ-01
 
 - This framework is deterministic at workflow level. LLM output is advisory and constrained by fixed gates.
 - It does not replace CI checks; it orchestrates when and how checks run.
+- Before a REQ can enter `TESTING`, the Review step must also approve the newly added or modified `tests/` cases.

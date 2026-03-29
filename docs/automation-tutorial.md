@@ -45,8 +45,10 @@ state/req-status.json (REQ 状态)
         │       └── 失败 → FIXING / BLOCKED（重试有上限）
         │
         ├── REVIEWING（二选一，见下文「多账号 Review」）
-        │       • 默认：`review_decision()`（LLM）→ `gh pr review` **使用 GIT_AGENT_TOKEN_REVIEW** 提交 Approve / Request changes
-        │       • 严格真人：`AUTOMATION_STRICT_HUMAN_REVIEW=1` → **轮询**直到 `GIT_AGENT_USERNAME_REVIEW` 在 GitHub 上给出 Approve / Request changes
+        │       • 默认：先做 `review_decision()` 代码审查，再做“测试用例审查”；两者都通过后，才会 `gh pr review`
+        │         **使用 GIT_AGENT_TOKEN_REVIEW** 提交 Approve / Request changes
+        │       • 严格真人：`AUTOMATION_STRICT_HUMAN_REVIEW=1` → **轮询**直到 `GIT_AGENT_USERNAME_REVIEW`
+        │         在 GitHub 上给出 Approve / Request changes；该审查应同时覆盖代码与测试用例
         │
         ├── TESTING（二选一）
         │       • 默认：`qa_decision()`（LLM）→ `gh pr comment` **使用 GIT_AGENT_TOKEN_TEST** 发 QA_PASSED / QA_FAILED
@@ -59,6 +61,7 @@ state/req-status.json (REQ 状态)
 
 - 客观门槛：`ruff` + `pytest` + 覆盖率下限（默认 80%）。
 - 流程阶段名：PENDING → READY → DEVELOPING → REVIEWING → TESTING → DONE / FIXING / BLOCKED。
+- 新规则：测试工程师写完测试用例后，必须先经过 Review 工程师审核，REQ 才能进入 `TESTING`。
 - Dev 侧鼓励：**门禁 PASS 后再 push 与开 PR**（任务说明 + 编排器二次跑门禁）。
 
 **与 `docs/teams.md` 的对齐方式**

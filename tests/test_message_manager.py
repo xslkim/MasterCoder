@@ -1,7 +1,6 @@
 """
 Tests for REQ-04: 对话消息管理器
 """
-import pytest
 from src.message_manager import MessageManager
 
 
