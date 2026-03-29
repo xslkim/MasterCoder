@@ -126,9 +126,7 @@ def git_prepare_worktree(repo_root: Path, branch: str) -> Path:
     if git_worktree_exists(repo_root, branch):
         current = git_current_branch(path)
         if current != branch:
-            raise RuntimeError(
-                f"已存在 worktree {path}，但当前分支为 {current}，期望 {branch}"
-            )
+            raise RuntimeError(f"已存在 worktree {path}，但当前分支为 {current}，期望 {branch}")
         return path
 
     path.parent.mkdir(parents=True, exist_ok=True)

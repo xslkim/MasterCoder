@@ -254,6 +254,7 @@ def test_branch_prepare_failure_goes_to_fixing(monkeypatch, tmp_path: Path) -> N
     )
     state_file = _make_state_file(tmp_path, state)
     settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
+
     def fail_prepare_worktree(*_a, **_k):
         raise RuntimeError("worktree blocked")
 
