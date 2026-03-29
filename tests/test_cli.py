@@ -86,7 +86,11 @@ def test_run_all_req_id_auto_refreshes_pending(monkeypatch: pytest.MonkeyPatch) 
             self.requirements = requirements
 
         def model_dump(self):
-            return {"requirements": [{"req_id": r.req_id, "state": r.state.value} for r in self.requirements]}
+            return {
+                "requirements": [
+                    {"req_id": r.req_id, "state": r.state.value} for r in self.requirements
+                ]
+            }
 
     class _FakeOrchestrator:
         def __init__(self, *args, **kwargs):
@@ -111,7 +115,10 @@ def test_run_all_req_id_auto_refreshes_pending(monkeypatch: pytest.MonkeyPatch) 
             return _State([_Rec("REQ-05", ReqState.DONE)])
 
     monkeypatch.setattr("mastercoder_automation.cli.check_automation_prerequisites", lambda: None)
-    monkeypatch.setattr("mastercoder_automation.cli.load_settings", lambda: type("S", (), {"state_file": Path("."), "github_repo": "x/y"})())
+    monkeypatch.setattr(
+        "mastercoder_automation.cli.load_settings",
+        lambda: type("S", (), {"state_file": Path("."), "github_repo": "x/y"})(),
+    )
     monkeypatch.setattr("mastercoder_automation.cli.GhClient", lambda *a, **k: object())
     monkeypatch.setattr("mastercoder_automation.cli.StateStore", _FakeStore)
     monkeypatch.setattr("mastercoder_automation.cli.Orchestrator", _FakeOrchestrator)
@@ -134,7 +141,11 @@ def test_run_all_auto_refreshes_global_work_queue(monkeypatch: pytest.MonkeyPatc
             self.requirements = requirements
 
         def model_dump(self):
-            return {"requirements": [{"req_id": r.req_id, "state": r.state.value} for r in self.requirements]}
+            return {
+                "requirements": [
+                    {"req_id": r.req_id, "state": r.state.value} for r in self.requirements
+                ]
+            }
 
     class _FakeOrchestrator:
         def __init__(self, *args, **kwargs):
@@ -157,7 +168,10 @@ def test_run_all_auto_refreshes_global_work_queue(monkeypatch: pytest.MonkeyPatc
             return _State([_Rec("REQ-05", ReqState.DONE)])
 
     monkeypatch.setattr("mastercoder_automation.cli.check_automation_prerequisites", lambda: None)
-    monkeypatch.setattr("mastercoder_automation.cli.load_settings", lambda: type("S", (), {"state_file": Path("."), "github_repo": "x/y"})())
+    monkeypatch.setattr(
+        "mastercoder_automation.cli.load_settings",
+        lambda: type("S", (), {"state_file": Path("."), "github_repo": "x/y"})(),
+    )
     monkeypatch.setattr("mastercoder_automation.cli.GhClient", lambda *a, **k: object())
     monkeypatch.setattr("mastercoder_automation.cli.StateStore", _FakeStore)
     monkeypatch.setattr("mastercoder_automation.cli.Orchestrator", _FakeOrchestrator)
@@ -197,9 +211,7 @@ def test_unblock_cmd_sets_ready_and_clears_error(
     assert data["requirements"][0]["last_error"] is None
 
 
-def test_unblock_unknown_req_id_exits_1(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unblock_unknown_req_id_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     state_path = tmp_path / "st.json"
     StateStore(state_path).save(
         PipelineState(requirements=[ReqRecord(req_id="REQ-01", title="t", state=ReqState.DONE)])
