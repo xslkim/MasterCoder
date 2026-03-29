@@ -1,6 +1,7 @@
 """
 Tests for REQ-04: 对话消息管理器
 """
+
 from src.message_manager import MessageManager
 
 
@@ -13,7 +14,7 @@ class TestMessageManager:
         manager.add_message("system", "You are a helpful assistant.")
         manager.add_message("user", "Hello!")
         manager.add_message("assistant", "Hi there!")
-        
+
         messages = manager.get_messages()
         assert len(messages) == 3
         assert messages[0]["role"] == "system"
@@ -29,7 +30,7 @@ class TestMessageManager:
         manager.add_message("user", "What's the weather?")
         tool_calls = [{"id": "call_123", "function": {"name": "get_weather", "arguments": "{}"}}]
         manager.add_message("assistant", None, tool_calls=tool_calls)
-        
+
         messages = manager.get_messages()
         assert len(messages) == 2
         assert messages[1]["role"] == "assistant"
@@ -42,7 +43,7 @@ class TestMessageManager:
         tool_calls = [{"id": "call_123", "function": {"name": "get_weather", "arguments": "{}"}}]
         manager.add_message("assistant", None, tool_calls=tool_calls)
         manager.add_message("tool", "Sunny, 25°C", tool_call_id="call_123")
-        
+
         messages = manager.get_messages()
         assert len(messages) == 3
         assert messages[2]["role"] == "tool"
@@ -56,7 +57,7 @@ class TestMessageManager:
         manager.add_message("user", "Hello!")
         manager.add_message("assistant", "Hi there!")
         manager.add_message("user", "How are you?")
-        
+
         manager.clear()
         messages = manager.get_messages()
         assert len(messages) == 1
@@ -69,7 +70,7 @@ class TestMessageManager:
         manager.add_message("user", "Hello!")
         manager.add_message("system", "System message 2")
         manager.add_message("assistant", "Hi there!")
-        
+
         manager.clear()
         messages = manager.get_messages()
         assert len(messages) == 2
@@ -81,7 +82,7 @@ class TestMessageManager:
         # 1000 个字符应该返回 250 tokens
         long_content = "a" * 1000
         manager.add_message("user", long_content)
-        
+
         estimate = manager.get_token_estimate()
         assert estimate == 250
 
@@ -89,9 +90,9 @@ class TestMessageManager:
         """测试多条消息的 token 估算"""
         manager = MessageManager()
         manager.add_message("system", "1234")  # 4 chars = 1 token
-        manager.add_message("user", "5678")    # 4 chars = 1 token
-        manager.add_message("assistant", "90") # 2 chars = 0.5 token
-        
+        manager.add_message("user", "5678")  # 4 chars = 1 token
+        manager.add_message("assistant", "90")  # 2 chars = 0.5 token
+
         estimate = manager.get_token_estimate()
         # 10 chars total / 4 = 2.5, should be rounded or floored
         assert estimate == 2 or estimate == 3  # Allow for rounding
@@ -102,7 +103,7 @@ class TestMessageManager:
         manager.add_message("system", "You are a helpful assistant.")
         manager.add_message("user", "Hello!")
         manager.add_message("assistant", "Hi there!")
-        
+
         result = manager.prepare_messages(max_context_tokens=10000)
         assert result["truncated"] is False
         assert len(result["messages"]) == 3
@@ -112,12 +113,12 @@ class TestMessageManager:
         manager = MessageManager()
         manager.add_message("system", "System message")
         # Add messages that will exceed limit
-        manager.add_message("user", "a" * 200)   # 50 tokens
+        manager.add_message("user", "a" * 200)  # 50 tokens
         manager.add_message("assistant", "b" * 200)  # 50 tokens
-        manager.add_message("user", "c" * 200)   # 50 tokens
+        manager.add_message("user", "c" * 200)  # 50 tokens
         manager.add_message("assistant", "d" * 200)  # 50 tokens
         # Total: 200 tokens without system message
-        
+
         result = manager.prepare_messages(max_context_tokens=100)
         assert result["truncated"] is True
         # System message should be preserved
@@ -132,7 +133,7 @@ class TestMessageManager:
         manager = MessageManager()
         manager.add_message("system", "Important system instruction")
         manager.add_message("user", "a" * 1000)  # 250 tokens
-        
+
         result = manager.prepare_messages(max_context_tokens=50)
         assert result["truncated"] is True
         assert result["messages"][0]["role"] == "system"
@@ -142,14 +143,14 @@ class TestMessageManager:
         """测试截断操作返回副本，不修改原始消息列表"""
         manager = MessageManager()
         manager.add_message("system", "System")
-        manager.add_message("user", "a" * 400)   # 100 tokens
+        manager.add_message("user", "a" * 400)  # 100 tokens
         manager.add_message("assistant", "b" * 400)  # 100 tokens
-        
+
         original_messages = manager.get_messages()
         original_count = len(original_messages)
-        
+
         result = manager.prepare_messages(max_context_tokens=50)
-        
+
         # Original list should not be modified
         assert len(manager.get_messages()) == original_count
         # Result should have fewer messages
@@ -165,7 +166,7 @@ class TestMessageManager:
         manager.add_message("assistant", "Assistant 2")
         manager.add_message("user", "User 3")
         manager.add_message("assistant", "Assistant 3")
-        
+
         messages = manager.get_messages()
         assert len(messages) == 7
         assert messages[0]["role"] == "system"
@@ -183,7 +184,7 @@ class TestMessageManager:
         manager.add_message("user", "User 1")
         manager.add_message("assistant", "Assistant 1")
         manager.add_message("user", "User 2")
-        
+
         manager.clear()
         messages = manager.get_messages()
         assert len(messages) == 1
@@ -194,7 +195,7 @@ class TestMessageManager:
         manager = MessageManager()
         content = "a" * 1000
         manager.add_message("user", content)
-        
+
         estimate = manager.get_token_estimate()
         assert estimate == 250
 
@@ -202,12 +203,12 @@ class TestMessageManager:
         """验收标准：设置 max_context_tokens = 100，当总量为 200 token 时，截断正确"""
         manager = MessageManager()
         manager.add_message("system", "System")
-        manager.add_message("user", "a" * 200)   # 50 tokens
+        manager.add_message("user", "a" * 200)  # 50 tokens
         manager.add_message("assistant", "b" * 200)  # 50 tokens
-        manager.add_message("user", "c" * 200)   # 50 tokens
+        manager.add_message("user", "c" * 200)  # 50 tokens
         manager.add_message("assistant", "d" * 200)  # 50 tokens
         # Total: ~200 tokens
-        
+
         result = manager.prepare_messages(max_context_tokens=100)
         assert result["truncated"] is True
         assert result["messages"][0]["role"] == "system"
@@ -219,7 +220,7 @@ class TestMessageManager:
         manager.add_message("user", "msg2")
         manager.add_message("assistant", "msg3")
         manager.add_message("user", "msg4")
-        
+
         messages = manager.get_messages()
         assert messages[0]["content"] == "msg1"
         assert messages[1]["content"] == "msg2"
@@ -231,7 +232,7 @@ class TestMessageManager:
         manager = MessageManager()
         assert manager.get_messages() == []
         assert manager.get_token_estimate() == 0
-        
+
         result = manager.prepare_messages(max_context_tokens=100)
         assert result["truncated"] is False
         assert result["messages"] == []
