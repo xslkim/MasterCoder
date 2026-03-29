@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # 智谱 GLM Coding API（OpenAI 兼容）：模型与 Base URL 固定，仅需设置环境变量 OPENAI_API_KEY。
-DEFAULT_LLM_MODEL_NAME = "GLM-5.1"
+DEFAULT_LLM_MODEL_NAME = "GLM-5"
 DEFAULT_OPENAI_API_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4"
 # 单次补全上限；过小易导致工具调用/写文件被截断。可用环境变量 LLM_MAX_TOKENS 覆盖。
 DEFAULT_LLM_MAX_TOKENS = 4096
