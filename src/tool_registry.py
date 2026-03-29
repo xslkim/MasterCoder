@@ -3,6 +3,7 @@ REQ-06: Tool Definition and Registration Framework
 
 This module provides the base Tool interface and a registry for managing tools.
 """
+
 from typing import Any, Optional
 from abc import ABC, abstractmethod
 
