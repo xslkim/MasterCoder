@@ -11,11 +11,20 @@ class Message:
     """消息类型定义"""
 
     role: str
-    content: str
+    content: Optional[str]
+    tool_calls: Optional[List[Dict[str, Any]]] = None
+    tool_call_id: Optional[str] = None
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> Dict[str, Any]:
         """转换为字典格式"""
-        return {"role": self.role, "content": self.content}
+        result: Dict[str, Any] = {"role": self.role}
+        if self.content is not None:
+            result["content"] = self.content
+        if self.tool_calls is not None:
+            result["tool_calls"] = self.tool_calls
+        if self.tool_call_id is not None:
+            result["tool_call_id"] = self.tool_call_id
+        return result
 
 
 @dataclass

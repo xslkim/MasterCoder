@@ -63,7 +63,7 @@ def run_all(
     cap = int(os.getenv("AUTOMATION_MAX_ROUNDS", str(max_rounds)))
 
     for round_i in range(cap):
-        state = store.load()
+        state = orchestrator.refresh_ready_only()
         if req_id:
             rec = next((r for r in state.requirements if r.req_id == req_id), None)
             if rec is None:
@@ -101,6 +101,24 @@ def run_all(
 
     final = store.load()
     print(json.dumps(final.model_dump(), indent=2))
+
+
+@app.command("unblock")
+def unblock_cmd(
+    req_id: str = typer.Option(..., "--req-id", help="要解锁的 REQ 编号"),
+) -> None:
+    """将指定 REQ 置为 READY，retries=0，last_error 清空（常用于 BLOCKED 后人工修复再继续）。"""
+    settings = load_settings()
+    store = StateStore(settings.state_file)
+    gh = GhClient(repo=settings.github_repo)
+    orchestrator = Orchestrator(settings=settings, store=store, gh=gh)
+    try:
+        state = orchestrator.unblock_req(req_id)
+    except ValueError as e:
+        print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
+    print(f"[green]已解锁 {req_id}：READY，retries=0，last_error 已清空。[/green]")
+    print(json.dumps(state.model_dump(), indent=2))
 
 
 @app.command("init-state")

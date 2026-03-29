@@ -43,11 +43,11 @@
       "blocked_by": [
         "REQ-03"
       ],
-      "state": "PENDING",
-      "retries": 0,
+      "state": "DONE",
+      "retries": 1,
       "max_retries": 3,
-      "branch": null,
-      "pr_number": null,
+      "branch": "feat/req-04-change",
+      "pr_number": 6,
       "last_error": null
     },
     {
@@ -56,11 +56,11 @@
       "blocked_by": [
         "REQ-04"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
-      "branch": null,
-      "pr_number": null,
+      "branch": "feat/req-05-ai",
+      "pr_number": 7,
       "last_error": null
     },
     {
@@ -69,11 +69,11 @@
       "blocked_by": [
         "REQ-05"
       ],
-      "state": "PENDING",
-      "retries": 0,
+      "state": "DONE",
+      "retries": 1,
       "max_retries": 3,
-      "branch": null,
-      "pr_number": null,
+      "branch": "feat/req-06-change",
+      "pr_number": 8,
       "last_error": null
     },
     {

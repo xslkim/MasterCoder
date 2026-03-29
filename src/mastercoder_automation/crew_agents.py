@@ -100,6 +100,49 @@ def review_decision(req: ReqRecord, gate_output: str, settings: Settings) -> Age
     return _extract_json(str(crew.kickoff()))
 
 
+def review_test_cases_decision(
+    req: ReqRecord, test_diff: str, gate_output: str, settings: Settings
+) -> AgentDecision:
+    agent = Agent(
+        role="测试用例审查智能体",
+        goal="确认测试工程师编写的测试用例是否达到可用门槛，并尽量避免过度拒绝。",
+        backstory=(
+            "你专门审查测试设计。默认应倾向 APPROVED；只有存在会导致测试无效或不可运行的"
+            "致命问题时才给 REJECTED。"
+        ),
+        llm=_llm(settings),
+        verbose=False,
+    )
+    task = Task(
+        description=(
+            f"需求：{req.req_id} - {req.title}\n"
+            "请重点审查本轮新增或修改的 tests/ 用例，确认这些测试是否可以作为后续测试阶段的依据。\n"
+            "审查策略（宽松门槛）：\n"
+            "1) 默认给 APPROVED。\n"
+            "2) 仅在出现“致命问题”时给 REJECTED。致命问题包括：\n"
+            "   - 测试文件明显不完整/语法错误/无法导入；\n"
+            "   - 核心测试完全没有断言，或断言与被测行为完全无关；\n"
+            "   - 关键需求没有任何可执行测试覆盖，且门禁证据已显示会失败。\n"
+            "3) 对于一般性质量问题（断言不够强、覆盖率可提升、可读性一般），仍给 APPROVED，"
+            "   并在 reasons 里提出改进建议，不要据此拒绝。\n"
+            "根据下方门禁输出与测试 diff，仅返回 JSON（字段名与取值必须英文如下）：\n"
+            '{"verdict":"APPROVED|REJECTED","reasons":["..."]}\n'
+            f"门禁输出：\n{gate_output[:6000]}\n\n"
+            f"测试 diff：\n{test_diff[:12000]}"
+        ),
+        expected_output='严格 JSON：{"verdict":"APPROVED|REJECTED","reasons":["..."]}',
+        agent=agent,
+    )
+    crew = Crew(
+        agents=[agent],
+        tasks=[task],
+        process=Process.sequential,
+        verbose=False,
+        tracing=False,
+    )
+    return _extract_json(str(crew.kickoff()))
+
+
 def qa_decision(req: ReqRecord, gate_output: str, settings: Settings) -> AgentDecision:
     agent = Agent(
         role="测试智能体",

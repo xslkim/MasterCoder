@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from . import repo_ops
 from .config import Settings
-from .crew_agents import qa_decision, review_decision
+from .crew_agents import qa_decision, review_decision, review_test_cases_decision
 from .dev_crew import run_dev_implementation_crew
 from .gates import run_quality_gates
 from .gh_client import GhClient
@@ -16,6 +16,57 @@ from .repo_ops import branch_slug, gh_pr_create_json, git_push_https
 from .state_store import StateStore
 
 _log = logging.getLogger(__name__)
+
+_GATE_REASON_MAX_LEN = 2000
+
+
+def _truncate_gate_reason(reason: str, max_len: int = _GATE_REASON_MAX_LEN) -> str:
+    """保留门禁日志的首尾：失败与 traceback 多在末尾，避免只截前缀导致误判。"""
+    if len(reason) <= max_len:
+        return reason
+    sep = "\n... [truncated middle] ...\n"
+    reserve = max_len - len(sep)
+    head_n = reserve // 3
+    tail_n = reserve - head_n
+    return reason[:head_n] + sep + reason[-tail_n:]
+
+
+def is_transient_error(reason: str) -> bool:
+    """判断失败原因是否更像可恢复/瞬时问题（网络、远端暂不可用等），用于减轻 retries 计数。"""
+    low = (reason or "").lower()
+    patterns = (
+        "timeout",
+        "timed out",
+        "connection timed out",
+        "connection refused",
+        "connection reset",
+        "temporary failure",
+        "try again",
+        "network is unreachable",
+        "could not resolve host",
+        "name or service not known",
+        "service unavailable",
+        "bad gateway",
+        "gateway timeout",
+        "rate limit",
+        "too many requests",
+        "early eof",
+        "rpc failed",
+        "the remote end hung up",
+        "broken pipe",
+        "ssl:",
+        "unable to access",
+        "failed to connect",
+        "nodename nor servname",
+        "resource temporarily unavailable",
+    )
+    if any(p in low for p in patterns):
+        return True
+    # HTTP 状态码（避免把 403 权限问题误判为瞬时）
+    for code in (" 502", " 503", " 504", " 429"):
+        if code in low:
+            return True
+    return False
 
 
 def _format_gh_token_permission_hint(operation: str, err: str) -> str:
@@ -46,6 +97,25 @@ class Orchestrator:
             self.store.save(state)
             return state
         self._advance(target)
+        self.store.save(state)
+        return state
+
+    def refresh_ready_only(self) -> PipelineState:
+        """仅刷新依赖解锁状态（PENDING -> READY），不推进任何 REQ。"""
+        state = self.store.load()
+        self._refresh_ready(state)
+        self.store.save(state)
+        return state
+
+    def unblock_req(self, req_id: str) -> PipelineState:
+        """将指定 REQ 解锁为可再次推进：READY、retries=0、last_error 清空。"""
+        state = self.store.load()
+        rec = next((r for r in state.requirements if r.req_id == req_id), None)
+        if rec is None:
+            raise ValueError(f"未找到 REQ：{req_id!r}（请检查 state 文件中的 req_id）")
+        rec.state = ReqState.READY
+        rec.retries = 0
+        rec.last_error = None
         self.store.save(state)
         return state
 
@@ -100,59 +170,83 @@ class Orchestrator:
             return "功能分支相对默认分支没有新的 commit；请先提交测试与实现，再创建 PR。"
         return None
 
-    def _prepare_req_branch(self, req: ReqRecord) -> str | None:
+    def _req_worktree_root(self, req: ReqRecord):
+        branch = req.branch or branch_slug(req)
+        return repo_ops.automation_worktree_path(self.settings.repo_root, branch)
+
+    def _prepare_req_branch(self, req: ReqRecord):
         if not req.branch:
             req.branch = branch_slug(req)
         try:
-            if repo_ops.git_current_branch(self.settings.repo_root) == req.branch:
-                return None
-            repo_ops.git_checkout_main_pull(self.settings.repo_root)
-            repo_ops.git_create_branch(self.settings.repo_root, req.branch)
+            return repo_ops.git_prepare_worktree(self.settings.repo_root, req.branch)
         except Exception as e:
-            return f"准备开发分支失败：{e}"
-        return None
+            return f"准备开发 worktree 失败：{e}"
 
     def _can_resume_existing_branch(self, req: ReqRecord) -> bool:
         if not req.branch:
             return False
         try:
-            if repo_ops.git_current_branch(self.settings.repo_root) != req.branch:
+            worktree_root = self._req_worktree_root(req)
+            if not repo_ops.git_worktree_exists(self.settings.repo_root, req.branch):
+                return False
+            if repo_ops.git_current_branch(worktree_root) != req.branch:
                 return False
         except Exception:
             return False
         return self._validate_req_branch(req) is None
 
+    def _review_test_cases(self, req: ReqRecord, gate_output: str) -> tuple[bool, str]:
+        try:
+            test_diff = repo_ops.git_diff_against_default(
+                self.settings.repo_root, req.branch or "HEAD", ["tests/"]
+            )
+        except Exception as e:
+            return False, f"无法获取 tests/ 变更 diff：{e}"
+        if not test_diff.strip():
+            return (
+                False,
+                "tests/ 下没有可供审查的 diff；测试工程师提交测试用例后，必须先经过 review 工程师审核。",
+            )
+
+        review = review_test_cases_decision(req, test_diff, gate_output, self.settings)
+        if review.verdict != "APPROVED":
+            return False, "测试用例审查未通过：" + "\n".join(review.reasons)
+        return True, "[测试用例审查]\n" + "\n".join(review.reasons)
+
     def _advance(self, req: ReqRecord) -> None:
         if req.state in {ReqState.READY, ReqState.FIXING}:
             req.state = ReqState.DEVELOPING
             if self._can_resume_existing_branch(req):
+                worktree_root = self._req_worktree_root(req)
                 summary = (
                     "检测到当前功能分支已包含测试变更和有效提交，跳过开发 Agent，直接继续后续流程。"
                 )
             else:
-                branch_prep_error = self._prepare_req_branch(req)
-                if branch_prep_error:
-                    self._retry_or_block(req, branch_prep_error)
+                worktree_root = self._prepare_req_branch(req)
+                if isinstance(worktree_root, str):
+                    self._retry_or_block(req, worktree_root, transient=None)
                     return
-                summary, pr_num = run_dev_implementation_crew(req, self.settings)
+                summary, pr_num = run_dev_implementation_crew(req, self.settings, worktree_root)
                 if pr_num is not None:
                     req.pr_number = pr_num
                 branch_error = self._validate_req_branch(req)
                 if branch_error:
-                    self._retry_or_block(req, branch_error)
+                    self._retry_or_block(req, branch_error, transient=None)
                     return
-            gate = run_quality_gates(self.settings.coverage_min, cwd=self.settings.repo_root)
+            gate = run_quality_gates(self.settings.coverage_min, cwd=worktree_root)
             if not gate.passed:
-                self._retry_or_block(req, gate.output)
+                self._retry_or_block(req, gate.output, transient=False)
                 return
             if req.pr_number is None:
                 token = (os.environ.get("GIT_AGENT_TOKEN_DEV") or "").strip()
                 if not token:
-                    self._retry_or_block(req, "智能体未创建 PR，且未设置 GIT_AGENT_TOKEN_DEV")
+                    self._retry_or_block(
+                        req, "智能体未创建 PR，且未设置 GIT_AGENT_TOKEN_DEV", transient=False
+                    )
                     return
                 try:
                     git_push_https(
-                        self.settings.repo_root,
+                        worktree_root,
                         req.branch,
                         token,
                         self.settings.github_repo,
@@ -165,10 +259,10 @@ class Orchestrator:
                         token,
                     )
                 except Exception as e:
-                    self._retry_or_block(req, f"推送/创建 PR 回退失败：{e}")
+                    self._retry_or_block(req, f"推送/创建 PR 回退失败：{e}", transient=None)
                     return
             if req.pr_number is None:
-                self._retry_or_block(req, "开发步骤结束后仍未获得 PR 编号")
+                self._retry_or_block(req, "开发步骤结束后仍未获得 PR 编号", transient=False)
                 return
 
             req.state = ReqState.REVIEWING
@@ -182,7 +276,8 @@ class Orchestrator:
                     self._retry_or_block(
                         req,
                         "开启 AUTOMATION_STRICT_HUMAN_REVIEW 时必须设置 GIT_AGENT_TOKEN_REVIEW 与 "
-                        "GIT_AGENT_USERNAME_REVIEW（审查账号的 GitHub 登录名）",
+                        "GIT_AGENT_USERNAME_REVIEW（审查账号的 GitHub 登录名）；该审查需同时覆盖代码与测试用例",
+                        transient=False,
                     )
                     return
                 verdict = poll_human_pr_review(
@@ -196,7 +291,7 @@ class Orchestrator:
                 if verdict == "TIMEOUT":
                     req.state = ReqState.BLOCKED
                     req.last_error = (
-                        f"等待 {review_login} 的 APPROVED/CHANGES_REQUESTED 超时 "
+                        f"等待 {review_login} 对代码与测试用例完成 APPROVED/CHANGES_REQUESTED 超时 "
                         f"（{self.settings.human_poll_timeout_sec} 秒）"
                     )
                     return
@@ -204,6 +299,7 @@ class Orchestrator:
                     self._retry_or_block(
                         req,
                         f"GitHub 审查来自 {review_login}：CHANGES_REQUESTED",
+                        transient=False,
                     )
                     return
             else:
@@ -211,12 +307,15 @@ class Orchestrator:
                     self._retry_or_block(
                         req,
                         "需要 GIT_AGENT_TOKEN_REVIEW，以便以审查账号提交 Review",
+                        transient=False,
                     )
                     return
                 review = review_decision(req, gate.output, self.settings)
-                body = "[审查 Agent — LLM 摘要]\n" + "\n".join(review.reasons)
+                tests_review_ok, test_review_body = self._review_test_cases(req, gate.output)
+                reasons = ["[代码审查]"] + review.reasons + [test_review_body]
+                body = "[审查 Agent — LLM 摘要]\n" + "\n".join(reasons)
                 try:
-                    if review.verdict == "APPROVED":
+                    if review.verdict == "APPROVED" and tests_review_ok:
                         self.gh.approve_pr(req.pr_number, body, gh_token=review_token)
                     else:
                         self.gh.request_changes(req.pr_number, body, gh_token=review_token)
@@ -226,10 +325,16 @@ class Orchestrator:
                         _format_gh_token_permission_hint(
                             "GitHub 提交 Review（approve/request_changes）", str(e)
                         ),
+                        transient=None,
                     )
                     return
                 if review.verdict != "APPROVED":
-                    self._retry_or_block(req, "审查未通过：" + "\n".join(review.reasons))
+                    self._retry_or_block(
+                        req, "审查未通过：" + "\n".join(review.reasons), transient=False
+                    )
+                    return
+                if not tests_review_ok:
+                    self._retry_or_block(req, test_review_body, transient=False)
                     return
 
             req.state = ReqState.TESTING
@@ -239,6 +344,7 @@ class Orchestrator:
                         req,
                         "开启 AUTOMATION_STRICT_HUMAN_QA 时必须设置 GIT_AGENT_TOKEN_TEST 与 "
                         "GIT_AGENT_USERNAME_TEST（测试账号登录名）；评论须以 QA_PASSED 或 QA_FAILED 开头",
+                        transient=False,
                     )
                     return
                 qa_verdict = poll_human_pr_qa(
@@ -257,6 +363,7 @@ class Orchestrator:
                     self._retry_or_block(
                         req,
                         f"测试账号 {test_login} 在 PR #{req.pr_number} 上评论了 QA_FAILED",
+                        transient=False,
                     )
                     return
             else:
@@ -264,6 +371,7 @@ class Orchestrator:
                     self._retry_or_block(
                         req,
                         "需要 GIT_AGENT_TOKEN_TEST，以便以测试账号发表 QA 评论",
+                        transient=False,
                     )
                     return
                 qa = qa_decision(req, gate.output, self.settings)
@@ -274,10 +382,11 @@ class Orchestrator:
                     self._retry_or_block(
                         req,
                         _format_gh_token_permission_hint("GitHub 发表 QA 评论", str(e)),
+                        transient=None,
                     )
                     return
                 if qa.verdict == "QA_FAILED":
-                    self._retry_or_block(req, "\n".join(qa.reasons))
+                    self._retry_or_block(req, "\n".join(qa.reasons), transient=False)
                     return
 
             req.state = ReqState.DONE
@@ -296,9 +405,21 @@ class Orchestrator:
                         e,
                     )
 
-    def _retry_or_block(self, req: ReqRecord, reason: str) -> None:
-        req.retries += 1
-        req.last_error = reason[:2000]
+    def _retry_or_block(
+        self, req: ReqRecord, reason: str, *, transient: bool | None = None
+    ) -> None:
+        """记录失败并进入 FIXING 或 BLOCKED。
+
+        transient:
+            - None：根据 reason 自动判断是否瞬时错误（瞬时则不计入 retries）
+            - True：不计入 retries
+            - False：始终计入 retries
+        """
+        if transient is None:
+            transient = is_transient_error(reason)
+        if not transient:
+            req.retries += 1
+        req.last_error = _truncate_gate_reason(reason)
         if req.retries > req.max_retries:
             req.state = ReqState.BLOCKED
         else:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from crewai import Agent, Crew, Process, Task
 from crewai.tools import tool
@@ -18,11 +19,12 @@ class DevContext:
     settings: Settings
     req: ReqRecord
     branch: str
+    worktree_root: Path
     last_pr_number: int | None = field(default=None, init=False)
 
 
 def build_dev_tools(ctx: DevContext) -> list:
-    root = ctx.settings.repo_root
+    root = ctx.worktree_root
 
     @tool("repo_read_file")
     def repo_read_file(relative_path: str) -> str:
@@ -147,9 +149,11 @@ def build_dev_tools(ctx: DevContext) -> list:
     ]
 
 
-def run_dev_implementation_crew(req: ReqRecord, settings: Settings) -> tuple[str, int | None]:
+def run_dev_implementation_crew(
+    req: ReqRecord, settings: Settings, worktree_root: Path
+) -> tuple[str, int | None]:
     branch = req.branch or repo_ops.branch_slug(req)
-    ctx = DevContext(settings=settings, req=req, branch=branch)
+    ctx = DevContext(settings=settings, req=req, branch=branch, worktree_root=worktree_root)
     tools = build_dev_tools(ctx)
 
     rid = req.req_id
@@ -172,9 +176,9 @@ def run_dev_implementation_crew(req: ReqRecord, settings: Settings) -> tuple[str
     task = Task(
         description=(
             f"需求：{rid} — {req.title}\n\n"
-            f"仓库根目录：{settings.repo_root}\n"
+            f"工作目录：{worktree_root}\n"
             f"分支名必须完全一致：{branch}\n\n"
-            "你启动时已经位于正确的功能分支上，无需自行切换分支。\n"
+            "你启动时已经位于正确的隔离 worktree 与功能分支上，无需自行切换分支。\n"
             f"1) 先用 repo_read_requirement，req_id={rid!r}，直接读取 {rid} 的需求章节；只有在需要更多上下文时才用 repo_read_file 阅读整个文档。\n"
             "2) 先在 tests/ 下编写或更新当前 REQ 的测试用例，确保测试断言直接对应需求文档。"
             "没有合适的现有测试时，可以新建一个聚焦当前需求的 tests/test_*.py。\n"

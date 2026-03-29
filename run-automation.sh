@@ -12,14 +12,21 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-if [[ ! -f .env.bash ]]; then
-  echo "错误：未找到 $ROOT/.env.bash，请先创建并填入密钥" >&2
+ENV_FILE=""
+if [[ -f .env.bash ]]; then
+  ENV_FILE=".env.bash"
+elif [[ -f .env.sh ]]; then
+  ENV_FILE=".env.sh"
+fi
+
+if [[ -z "$ENV_FILE" ]]; then
+  echo "错误：未找到 $ROOT/.env.bash 或 $ROOT/.env.sh，请先创建并填入密钥" >&2
   exit 1
 fi
 
 set -a
 # shellcheck source=/dev/null
-source ".env.bash"
+source "$ENV_FILE"
 set +a
 
 export REPO_ROOT="$ROOT"
