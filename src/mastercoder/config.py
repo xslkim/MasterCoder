@@ -1,4 +1,4 @@
-"""配置加载模块 - 支持全局配置文件和环境变量。"""
+"""配置加载模块 - 支持全局配置、项目级配置和环境变量。"""
 
 import json
 import os
@@ -7,7 +7,10 @@ from typing import Any
 
 
 class Config:
-    """配置类，管理所有配置项。"""
+    """配置类，管理所有配置项。
+
+    配置优先级：环境变量 > 项目级配置 > 全局配置 > 默认值
+    """
 
     # 默认值
     DEFAULTS = {
@@ -33,26 +36,40 @@ class Config:
         "temperature": (0.0, 2.0),
     }
 
-    def __init__(self) -> None:
-        """初始化配置，按优先级加载：环境变量 > 配置文件 > 默认值。"""
+    def __init__(self, working_dir: Path | None = None) -> None:
+        """初始化配置，按优先级加载：环境变量 > 项目级配置 > 全局配置 > 默认值。
+
+        Args:
+            working_dir: 工作目录，默认为当前目录
+        """
         # 从默认值开始
         self._config: dict[str, Any] = self.DEFAULTS.copy()
+        self._working_dir = working_dir or Path.cwd()
 
-        # 加载全局配置文件
-        config_path = self._get_config_path()
-        if config_path.exists():
-            self._load_config_file(config_path)
+        # 1. 加载全局配置文件
+        global_config_path = self._get_global_config_path()
+        if global_config_path.exists():
+            self._load_config_file(global_config_path)
 
-        # 环境变量覆盖
+        # 2. 加载项目级配置文件
+        project_config_path = self._get_project_config_path()
+        if project_config_path.exists():
+            self._load_config_file(project_config_path)
+
+        # 3. 环境变量覆盖
         self._load_env_vars()
 
-        # 验证范围
+        # 4. 验证范围
         self._validate_ranges()
 
-    def _get_config_path(self) -> Path:
+    def _get_global_config_path(self) -> Path:
         """获取全局配置文件路径。"""
         home = Path.home()
         return home / ".mastercoder" / "config.json"
+
+    def _get_project_config_path(self) -> Path:
+        """获取项目级配置文件路径。"""
+        return self._working_dir / ".mastercoder" / "config.json"
 
     def _load_config_file(self, config_path: Path) -> None:
         """加载配置文件。
@@ -168,18 +185,27 @@ class Config:
 _config: Config | None = None
 
 
-def get_config() -> Config:
+def get_config(working_dir: Path | None = None) -> Config:
     """获取全局配置实例。
+
+    Args:
+        working_dir: 工作目录，默认为当前目录
 
     Returns:
         Config 实例
     """
     global _config
     if _config is None:
-        _config = Config()
+        _config = Config(working_dir)
         # 记录配置（脱敏）
         _log_config(_config)
     return _config
+
+
+def reset_config() -> None:
+    """重置全局配置实例（用于测试）。"""
+    global _config
+    _config = None
 
 
 def _log_config(config: Config) -> None:

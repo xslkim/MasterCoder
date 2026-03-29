@@ -1,3 +1,5 @@
-"""MasterCoder - AI programming assistant."""
+"""MasterCoder 模块"""
 
-__version__ = "0.1.0"
+from mastercoder import config, system_prompt
+
+__all__ = ["config", "system_prompt"]
