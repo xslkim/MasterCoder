@@ -45,7 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  mastercoder -m deepseek-chat   使用 deepseek-chat 模型\n"
             "  mastercoder -y                 启用自动批准模式\n"
             "  mastercoder --version          显示版本号\n"
-            "  echo \"hello\" | mastercoder     非交互模式（管道输入）\n\n"
+            '  echo "hello" | mastercoder     非交互模式（管道输入）\n\n'
             "Security Note:\n"
             "  --api-key 参数在进程列表中可见，建议使用环境变量 MASTERCODER_API_KEY"
         ),
@@ -175,7 +175,3 @@ def run_non_interactive_mode(
         output_stream.write(f"Error: {error}\n")
         output_stream.flush()
         return 1
-
-
-if __name__ == "__main__":
-    main()
