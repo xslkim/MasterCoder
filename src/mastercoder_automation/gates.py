@@ -43,7 +43,7 @@ def run_quality_gates(coverage_min: int, cwd: Path | None = None) -> GateResult:
         [
             "pytest",
             "tests/",
-            "-v",
+            "-q",
             "--tb=short",
             "--cov=mastercoder_automation",
             "--cov-report=term",

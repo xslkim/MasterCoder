@@ -210,6 +210,46 @@ def test_merge_failure_does_not_crash(monkeypatch, tmp_path: Path) -> None:
     assert new_state.requirements[0].state == ReqState.DONE
 
 
+def test_success_clears_last_error(monkeypatch, tmp_path: Path) -> None:
+    state = PipelineState(
+        requirements=[
+            ReqRecord(req_id="REQ-01", title="base", state=ReqState.FIXING, last_error="old")
+        ]
+    )
+    state_file = _make_state_file(tmp_path, state)
+    settings = Settings("gpt-4o-mini", "x/y", 80, state_file, Path("."))
+    monkeypatch.setenv("GIT_AGENT_TOKEN_REVIEW", "test-review-token")
+    monkeypatch.setenv("GIT_AGENT_TOKEN_TEST", "test-qa-token")
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.run_dev_implementation_crew",
+        lambda *_: ("ok", 1),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.run_quality_gates",
+        lambda *_a, **_k: type("G", (), {"passed": True, "output": "ok"})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.review_decision",
+        lambda *_: type("D", (), {"verdict": "APPROVED", "reasons": []})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.review_test_cases_decision",
+        lambda *_: type("D", (), {"verdict": "APPROVED", "reasons": []})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.qa_decision",
+        lambda *_: type("D", (), {"verdict": "QA_PASSED", "reasons": []})(),
+    )
+    _stub_branch_checks(monkeypatch)
+
+    orchestrator = Orchestrator(settings=settings, store=StateStore(state_file), gh=DummyGh())
+    new_state = orchestrator.run_once()
+    req = new_state.requirements[0]
+    assert req.state == ReqState.DONE
+    assert req.last_error is None
+
+
+
 def test_missing_test_changes_goes_to_fixing(monkeypatch, tmp_path: Path) -> None:
     state = PipelineState(
         requirements=[ReqRecord(req_id="REQ-02", title="config", state=ReqState.READY)]
@@ -326,6 +366,10 @@ def test_resume_existing_branch_skips_dev_agent(monkeypatch, tmp_path: Path) -> 
         lambda *_a, **_k: 1,
     )
     monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_diff_against_default",
+        lambda *_a, **_k: "diff --git a/tests/test_req21.py b/tests/test_req21.py\n+assert True\n",
+    )
+    monkeypatch.setattr(
         "mastercoder_automation.orchestrator.run_dev_implementation_crew",
         lambda *_: (_ for _ in ()).throw(AssertionError("dev crew should be skipped")),
     )
@@ -358,6 +402,93 @@ def test_resume_existing_branch_skips_dev_agent(monkeypatch, tmp_path: Path) -> 
     new_state = orchestrator.run_once(req_id="REQ-02")
     req = new_state.requirements[0]
     assert req.pr_number == 23
+    assert req.state == ReqState.DONE
+
+
+def test_existing_pr_uses_worktree_cwd(monkeypatch, tmp_path: Path) -> None:
+    state = PipelineState(
+        requirements=[
+            ReqRecord(
+                req_id="REQ-21",
+                title="history",
+                state=ReqState.FIXING,
+                branch="feat/req-21-change",
+            )
+        ]
+    )
+    state_file = _make_state_file(tmp_path, state)
+    repo_root = tmp_path / "repo"
+    settings = Settings("gpt-4o-mini", "x/y", 80, state_file, repo_root)
+    worktree_root = repo_root / ".automation-worktrees" / "feat__req-21-change"
+
+    monkeypatch.setenv("GIT_AGENT_TOKEN_DEV", "dev-token")
+    monkeypatch.setenv("GIT_AGENT_TOKEN_REVIEW", "review-token")
+    monkeypatch.setenv("GIT_AGENT_TOKEN_TEST", "qa-token")
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_worktree_exists",
+        lambda *_a, **_k: True,
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_current_branch",
+        lambda *_a, **_k: "feat/req-21-change",
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.automation_worktree_path",
+        lambda *_a, **_k: worktree_root,
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_changed_files_against_default",
+        lambda *_a, **_k: ["tests/test_req21.py", "src/mastercoder/message_manager.py"],
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_commits_ahead_of_default",
+        lambda *_a, **_k: 1,
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.repo_ops.git_diff_against_default",
+        lambda *_a, **_k: "diff --git a/tests/test_req21.py b/tests/test_req21.py\n+assert True\n",
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.run_dev_implementation_crew",
+        lambda *_: (_ for _ in ()).throw(AssertionError("dev crew should be skipped")),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.run_quality_gates",
+        lambda *_a, **_k: type("G", (), {"passed": True, "output": "ok"})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.git_push_https",
+        lambda *_a, **_k: "pushed",
+    )
+
+    gh_create_calls: list[Path] = []
+
+    def fake_gh_pr_create_json(*_args, **kwargs):
+        gh_create_calls.append(kwargs["cwd"])
+        return 24
+
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.gh_pr_create_json",
+        fake_gh_pr_create_json,
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.review_decision",
+        lambda *_: type("D", (), {"verdict": "APPROVED", "reasons": []})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.review_test_cases_decision",
+        lambda *_: type("D", (), {"verdict": "APPROVED", "reasons": []})(),
+    )
+    monkeypatch.setattr(
+        "mastercoder_automation.orchestrator.qa_decision",
+        lambda *_: type("D", (), {"verdict": "QA_PASSED", "reasons": []})(),
+    )
+
+    orchestrator = Orchestrator(settings=settings, store=StateStore(state_file), gh=DummyGh())
+    new_state = orchestrator.run_once(req_id="REQ-21")
+    req = new_state.requirements[0]
+    assert gh_create_calls == [worktree_root]
+    assert req.pr_number == 24
     assert req.state == ReqState.DONE
 
 
@@ -437,6 +568,7 @@ def test_is_transient_error() -> None:
     assert is_transient_error("Connection timed out while pushing to origin")
     assert is_transient_error("HTTP 503 service unavailable")
     assert is_transient_error("Error 429 too many requests")
+    assert is_transient_error("kex_exchange_identification: banner line contains invalid characters")
     assert not is_transient_error("pytest failed: AssertionError")
     assert not is_transient_error("审查未通过：ruff format")
 

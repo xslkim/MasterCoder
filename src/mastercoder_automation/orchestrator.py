@@ -57,6 +57,9 @@ def is_transient_error(reason: str) -> bool:
         "ssl:",
         "unable to access",
         "failed to connect",
+        "kex_exchange_identification",
+        "banner exchange",
+        "invalid format",
         "nodename nor servname",
         "resource temporarily unavailable",
     )
@@ -257,6 +260,7 @@ class Orchestrator:
                         f"[{req.req_id}] {req.title}",
                         f"自动化 PR：{req.req_id}。\n\n---\n{summary[:6000]}",
                         token,
+                        cwd=worktree_root,
                     )
                 except Exception as e:
                     self._retry_or_block(req, f"推送/创建 PR 回退失败：{e}", transient=None)
@@ -389,6 +393,7 @@ class Orchestrator:
                     self._retry_or_block(req, "\n".join(qa.reasons), transient=False)
                     return
 
+            req.last_error = None
             req.state = ReqState.DONE
             merge_tok = (
                 (os.environ.get("GIT_AGENT_TOKEN_MERGE") or "").strip()

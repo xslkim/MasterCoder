@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from .repo_ops import _pr_number_from_gh_create_stdout
 
 
+def _is_auto_merge_unavailable(err: str) -> bool:
+    low = (err or "").lower()
+    return "protected branch rules not configured" in low or "auto merge" in low
+
+
 def _run(cmd: list[str], gh_token: str | None = None) -> str:
     env = os.environ.copy()
     if gh_token:
@@ -129,17 +134,19 @@ class GhClient:
         *,
         gh_token: str | None = None,
     ) -> None:
-        _run(
-            [
-                "gh",
-                "pr",
-                "merge",
-                str(pr_number),
-                "--repo",
-                self.repo,
-                "--squash",
-                "--delete-branch",
-                "--auto",
-            ],
-            gh_token=gh_token,
-        )
+        cmd = [
+            "gh",
+            "pr",
+            "merge",
+            str(pr_number),
+            "--repo",
+            self.repo,
+            "--squash",
+            "--delete-branch",
+        ]
+        try:
+            _run([*cmd, "--auto"], gh_token=gh_token)
+        except RuntimeError as e:
+            if not _is_auto_merge_unavailable(str(e)):
+                raise
+            _run(cmd, gh_token=gh_token)

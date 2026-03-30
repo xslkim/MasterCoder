@@ -29,6 +29,25 @@ def _pr_number_from_gh_create_stdout(stdout: str) -> int:
     raise ValueError(f"无法从 gh pr create 输出解析 PR 编号：{text[:800]!r}")
 
 
+def _pr_number_from_gh_pr_list(stdout: str) -> int | None:
+    text = (stdout or "").strip()
+    if not text:
+        return None
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, list) or not payload:
+        return None
+    first = payload[0]
+    if not isinstance(first, dict):
+        return None
+    number = first.get("number")
+    if isinstance(number, int):
+        return number
+    return None
+
+
 def branch_slug(req: ReqRecord) -> str:
     rid = req.req_id.replace("_", "-").lower()
     s = req.title.lower()
@@ -92,9 +111,53 @@ def _git(repo_root: Path, *args: str, env: dict[str, str] | None = None) -> str:
     return proc.stdout.strip()
 
 
+def _git_remote_url(repo_root: Path, remote: str = "origin") -> str | None:
+    try:
+        return _git(repo_root, "remote", "get-url", remote).strip()
+    except RuntimeError:
+        return None
+
+
+def _github_https_remote_url(repo_root: Path, remote: str = "origin") -> str | None:
+    raw = _git_remote_url(repo_root, remote)
+    if raw:
+        text = raw.strip()
+        if text.startswith("https://github.com/"):
+            return text.removesuffix("/")
+        m = re.match(r"git@github\.com:([^/\s]+)/([^/\s]+?)(?:\.git)?$", text)
+        if m:
+            return f"https://github.com/{m.group(1)}/{m.group(2)}.git"
+        m = re.match(r"ssh://git@github\.com/([^/\s]+)/([^/\s]+?)(?:\.git)?$", text)
+        if m:
+            return f"https://github.com/{m.group(1)}/{m.group(2)}.git"
+    env_repo = (os.getenv("GITHUB_REPO") or "").strip()
+    if "/" not in env_repo:
+        return None
+    owner, _, repo = env_repo.partition("/")
+    return f"https://github.com/{owner}/{repo}.git"
+
+
+def _git_fetch_origin(repo_root: Path) -> str:
+    try:
+        return _git(repo_root, "fetch", "origin")
+    except RuntimeError as origin_err:
+        https_url = _github_https_remote_url(repo_root)
+        if not https_url:
+            raise
+        try:
+            return _git(
+                repo_root,
+                "fetch",
+                https_url,
+                "+refs/heads/*:refs/remotes/origin/*",
+            )
+        except RuntimeError:
+            raise origin_err
+
+
 def git_checkout_main_pull(repo_root: Path) -> str:
     base = default_branch_name(repo_root)
-    _git(repo_root, "fetch", "origin")
+    _git_fetch_origin(repo_root)
     _git(repo_root, "checkout", base)
     _git(repo_root, "pull", "origin", base, "--ff-only")
     return f"成功：已更新默认分支 {base}"
@@ -121,7 +184,7 @@ def git_prepare_worktree(repo_root: Path, branch: str) -> Path:
     repo_root = repo_root.resolve()
     path = automation_worktree_path(repo_root, branch)
     base = default_branch_name(repo_root)
-    _git(repo_root, "fetch", "origin")
+    _git_fetch_origin(repo_root)
 
     if git_worktree_exists(repo_root, branch):
         current = git_current_branch(path)
@@ -235,7 +298,48 @@ def git_push_https(repo_root: Path, branch: str, token: str, github_repo: str) -
     return f"成功：已推送分支 {branch}"
 
 
-def gh_pr_create_json(repo: str, head: str, title: str, body: str, token: str) -> int:
+def gh_pr_existing_number(
+    repo: str, head: str, token: str, *, cwd: Path | None = None
+) -> int | None:
+    if which("gh") is None:
+        raise RuntimeError("未找到 gh（GitHub CLI），无法查询 PR。请安装：https://cli.github.com/")
+    env = {**os.environ}
+    if token:
+        env["GH_TOKEN"] = token
+    proc = subprocess.run(
+        [
+            "gh",
+            "pr",
+            "list",
+            "--repo",
+            repo,
+            "--head",
+            head,
+            "--state",
+            "open",
+            "--json",
+            "number",
+        ],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=cwd,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError((proc.stderr or proc.stdout or "").strip())
+    return _pr_number_from_gh_pr_list(proc.stdout)
+
+
+def gh_pr_create_json(
+    repo: str,
+    head: str,
+    title: str,
+    body: str,
+    token: str,
+    *,
+    cwd: Path | None = None,
+) -> int:
     if which("gh") is None:
         raise RuntimeError("未找到 gh（GitHub CLI），无法创建 PR。请安装：https://cli.github.com/")
     env = {**os.environ}
@@ -258,10 +362,16 @@ def gh_pr_create_json(repo: str, head: str, title: str, body: str, token: str) -
         capture_output=True,
         text=True,
         env=env,
+        cwd=cwd,
         check=False,
     )
-    if proc.returncode != 0:
-        raise RuntimeError((proc.stderr or proc.stdout or "").strip())
     # 部分 gh 版本把 PR URL 打在 stdout 或 stderr
     blob = f"{proc.stdout or ''}\n{proc.stderr or ''}".strip()
+    if proc.returncode != 0:
+        if "already exists" in blob.lower():
+            existing = gh_pr_existing_number(repo, head, token, cwd=cwd)
+            if existing is not None:
+                return existing
+            return _pr_number_from_gh_create_stdout(blob)
+        raise RuntimeError(blob)
     return _pr_number_from_gh_create_stdout(blob)

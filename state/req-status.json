@@ -82,7 +82,7 @@
       "blocked_by": [
         "REQ-06"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -95,7 +95,7 @@
       "blocked_by": [
         "REQ-07"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -108,7 +108,7 @@
       "blocked_by": [
         "REQ-08"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -121,7 +121,7 @@
       "blocked_by": [
         "REQ-09"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -134,7 +134,7 @@
       "blocked_by": [
         "REQ-10"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -147,7 +147,7 @@
       "blocked_by": [
         "REQ-11"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -160,7 +160,7 @@
       "blocked_by": [
         "REQ-12"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -173,7 +173,7 @@
       "blocked_by": [
         "REQ-13"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -186,7 +186,7 @@
       "blocked_by": [
         "REQ-14"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -199,7 +199,7 @@
       "blocked_by": [
         "REQ-15"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -212,7 +212,7 @@
       "blocked_by": [
         "REQ-16"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -225,7 +225,7 @@
       "blocked_by": [
         "REQ-17"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -238,7 +238,7 @@
       "blocked_by": [
         "REQ-18"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -251,7 +251,7 @@
       "blocked_by": [
         "REQ-19"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
       "branch": null,
@@ -264,11 +264,11 @@
       "blocked_by": [
         "REQ-20"
       ],
-      "state": "PENDING",
-      "retries": 0,
+      "state": "DONE",
+      "retries": 2,
       "max_retries": 3,
-      "branch": null,
-      "pr_number": null,
+      "branch": "feat/req-21-change",
+      "pr_number": 24,
       "last_error": null
     },
     {
@@ -277,11 +277,11 @@
       "blocked_by": [
         "REQ-21"
       ],
-      "state": "PENDING",
-      "retries": 0,
+      "state": "DONE",
+      "retries": 1,
       "max_retries": 3,
-      "branch": null,
-      "pr_number": null,
+      "branch": "feat/req-22-change",
+      "pr_number": 25,
       "last_error": null
     },
     {
@@ -290,11 +290,11 @@
       "blocked_by": [
         "REQ-22"
       ],
-      "state": "PENDING",
-      "retries": 0,
+      "state": "DONE",
+      "retries": 1,
       "max_retries": 3,
-      "branch": null,
-      "pr_number": null,
+      "branch": "feat/req-23-change",
+      "pr_number": 26,
       "last_error": null
     },
     {
@@ -303,11 +303,11 @@
       "blocked_by": [
         "REQ-23"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
-      "branch": null,
-      "pr_number": null,
+      "branch": "feat/req-24-change",
+      "pr_number": 27,
       "last_error": null
     },
     {
@@ -316,11 +316,11 @@
       "blocked_by": [
         "REQ-24"
       ],
-      "state": "PENDING",
+      "state": "DONE",
       "retries": 0,
       "max_retries": 3,
-      "branch": null,
-      "pr_number": null,
+      "branch": "feat/req-25-git",
+      "pr_number": 28,
       "last_error": null
     }
   ]
