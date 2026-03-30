@@ -1,6 +1,9 @@
-"""System prompt 构建模块 - 支持 MASTERCODER.md 注入和自定义提示词拼接。"""
+"""System prompt 构建模块 - 支持 MASTERCODER.md、Git 信息与自定义提示词拼接。"""
 
 from pathlib import Path
+from typing import Optional
+
+from mastercoder.git_info import GitInfo
 
 
 # 内置 system prompt
@@ -57,19 +60,25 @@ def read_mastercoder_md(working_dir: Path) -> str:
         return ""
 
 
-def build_system_prompt(working_dir: Path, custom_prompt: str) -> str:
+def build_system_prompt(
+    working_dir: Path,
+    custom_prompt: str,
+    git_info: Optional[GitInfo] = None,
+) -> str:
     """构建完整的 system prompt。
 
     拼接顺序：
     1. 内置 system prompt
     2. MASTERCODER.md 内容（如果存在）
-    3. 用户自定义 system_prompt（如果配置）
+    3. Git 信息（如果是 Git 仓库）
+    4. 用户自定义 system_prompt（如果配置）
 
     各部分之间用 "---" 分隔。
 
     Args:
         working_dir: 工作目录路径
         custom_prompt: 用户自定义 system_prompt 配置
+        git_info: Git 仓库信息
 
     Returns:
         完整的 system prompt
@@ -82,6 +91,11 @@ def build_system_prompt(working_dir: Path, custom_prompt: str) -> str:
         parts.append("---")
         parts.append("Project instructions (from MASTERCODER.md):")
         parts.append(mastercoder_md_content)
+
+    if git_info and git_info.is_git_repo:
+        git_message = git_info.to_system_message()
+        if git_message:
+            parts.append(git_message)
 
     # 添加用户自定义提示词
     if custom_prompt:

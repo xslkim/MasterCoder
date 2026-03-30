@@ -1,14 +1,13 @@
 """主对话循环 - 串联配置、API 客户端和消息管理器。"""
 
 import sys
+from pathlib import Path
 
 from mastercoder.api_client import APIClient, APIError
 from mastercoder.config import Config, get_config
+from mastercoder.git_info import build_prompt, get_git_info
 from mastercoder.message_manager import MessageManager
-
-
-# 内置 system 消息
-BUILTIN_SYSTEM_PROMPT = """You are MasterCoder, an AI programming assistant. You help users with software development tasks including writing code, debugging, refactoring, and explaining code. You have access to tools that can read files, write files, edit files, search files, and run commands on the user's local machine. Always be helpful, concise, and accurate."""
+from mastercoder.system_prompt import build_system_prompt
 
 
 class ConversationLoop:
@@ -27,12 +26,11 @@ class ConversationLoop:
 
     def _initialize_system_message(self) -> None:
         """初始化系统消息，包括内置消息和自定义 prompt。"""
-        system_content = BUILTIN_SYSTEM_PROMPT
-
-        # 追加自定义 system_prompt（如果非空）
-        if self._config.system_prompt:
-            system_content += " " + self._config.system_prompt
-
+        system_content = build_system_prompt(
+            Path.cwd(),
+            self._config.system_prompt,
+            git_info=get_git_info(),
+        )
         self._message_manager.add_message("system", system_content)
 
     def run(self) -> None:
@@ -51,11 +49,8 @@ class ConversationLoop:
 
         while True:
             try:
-                # 显示提示符
-                print("> ", end="", flush=True)
-
-                # 读取用户输入
-                user_input = input()
+                # 显示提示符；Git 分支在每轮输入前实时刷新
+                user_input = input(build_prompt(self._config.model))
 
                 if not user_input.strip():
                     continue

@@ -311,6 +311,9 @@ class MarkdownRenderer:
         if line.startswith("- "):
             return f"  {line}"
 
+        if "**" in line and "`" in line:
+            return line.replace("**", "").replace("`", "")
+
         # 行内元素
         result = line
 
@@ -464,8 +467,8 @@ class StreamMarkdownRenderer:
                         self.code_block_lang = after_start[:lang_end].strip()
                         self.buffer = after_start[lang_end + 1 :]
                     else:
-                        # 语言标签还未完整接收
-                        self.buffer = ""
+                        # 语言标签还未完整接收，保留未处理内容等待后续片段
+                        self.buffer = self.buffer[code_start:]
                         break
 
                     # 切换到代码块状态
@@ -478,6 +481,9 @@ class StreamMarkdownRenderer:
                         text = self.buffer[: last_newline + 1]
                         output.append(self.renderer.render(text))
                         self.buffer = self.buffer[last_newline + 1 :]
+                    elif self.buffer and "`" not in self.buffer:
+                        output.append(self.renderer.render(self.buffer))
+                        self.buffer = ""
                     else:
                         # 没有完整行，等待更多输入
                         break

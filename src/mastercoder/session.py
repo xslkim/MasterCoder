@@ -82,7 +82,9 @@ class SessionManager:
     
     def _get_timestamp(self) -> str:
         """Get current timestamp in ISO 8601 format"""
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace(
+            "+00:00", "Z"
+        )
     
     def create_session(
         self,
@@ -194,8 +196,8 @@ class SessionManager:
                     # Skip corrupted files
                     continue
             
-            # Sort by updated_at descending
-            sessions.sort(key=lambda s: s.updated_at, reverse=True)
+            # Sort by updated_at descending, then session_id descending for deterministic ties.
+            sessions.sort(key=lambda session: (session.updated_at, session.session_id), reverse=True)
             
             # Apply limit
             return sessions[:limit]

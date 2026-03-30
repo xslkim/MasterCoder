@@ -2,17 +2,21 @@
 
 import sys
 
+from mastercoder.git_info import build_prompt, get_git_info
+
 
 def main() -> None:
     """主函数 - 启动 REPL 循环。"""
+    get_git_info()
+
     print("MasterCoder v0.1.0")
     print("Type /help for available commands, /exit to quit.")
 
     try:
         while True:
             try:
-                # 显示提示符并读取用户输入
-                user_input = input("> ")
+                # 显示提示符并读取用户输入；Git 分支每轮刷新
+                user_input = input(build_prompt())
 
                 # 空行跳过
                 if not user_input.strip():
