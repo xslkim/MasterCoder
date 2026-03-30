@@ -10,7 +10,8 @@ from typing import Any, TextIO
 
 from mastercoder.api_client import APIClient, APIError
 from mastercoder.config import Config
-from mastercoder.conversation import BUILTIN_SYSTEM_PROMPT
+from mastercoder.git_info import get_git_info
+from mastercoder.system_prompt import build_system_prompt
 
 
 VERSION = "0.1.0"
@@ -132,9 +133,12 @@ def create_config_from_args(
 
 def build_initial_messages(config: Config, user_input: str) -> list[dict[str, str]]:
     """Build a one-shot request payload for non-interactive mode."""
-    system_content = BUILTIN_SYSTEM_PROMPT
-    if config.system_prompt:
-        system_content += " " + config.system_prompt
+    working_dir = Path(getattr(config, "_working_dir", Path.cwd()))
+    system_content = build_system_prompt(
+        working_dir,
+        config.system_prompt,
+        git_info=get_git_info(),
+    )
     return [
         {"role": "system", "content": system_content},
         {"role": "user", "content": user_input},

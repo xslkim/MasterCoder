@@ -56,7 +56,7 @@ class SessionManager:
     def __init__(self, sessions_dir: Optional[Path] = None):
         """
         Initialize session manager.
-        
+
         Args:
             sessions_dir: Directory to store session files. If None, uses default.
         """
@@ -66,7 +66,6 @@ class SessionManager:
         else:
             self.sessions_dir = sessions_dir
 
-        # Auto-create sessions directory
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
 
     def _generate_session_id(self) -> str:
@@ -76,7 +75,7 @@ class SessionManager:
         Example: 20260326_143022_a1b2
         """
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        random_hex = secrets.token_hex(2)  # 4 hex characters
+        random_hex = secrets.token_hex(2)
         return f"{timestamp}_{random_hex}"
 
     def _get_timestamp(self) -> str:
@@ -86,16 +85,7 @@ class SessionManager:
         )
 
     def create_session(self, working_directory: str, model: str) -> Session:
-        """
-        Create a new session.
-        
-        Args:
-            working_directory: Current working directory
-            model: Model name being used
-
-        Returns:
-            Newly created Session object
-        """
+        """Create a new session."""
         now = self._get_timestamp()
         session_id = self._generate_session_id()
 
@@ -109,105 +99,62 @@ class SessionManager:
         )
 
     def save_session(self, session: Session) -> bool:
-        """
-        Save session to file using atomic write (temp file + rename).
-        
-        Args:
-            session: Session object to save
-
-        Returns:
-            True if save successful, False otherwise
-        """
+        """Save session to file using atomic write (temp file + rename)."""
         try:
             session.updated_at = self._get_timestamp()
 
             session_file = self.sessions_dir / f"{session.session_id}.json"
             temp_file = self.sessions_dir / f"{session.session_id}.json.tmp"
 
-            # Write to temp file first
-            with open(temp_file, "w", encoding="utf-8") as f:
-                json.dump(session.to_dict(), f, indent=2, ensure_ascii=False)
+            with open(temp_file, "w", encoding="utf-8") as file_obj:
+                json.dump(session.to_dict(), file_obj, indent=2, ensure_ascii=False)
 
-            # Atomic rename
             temp_file.rename(session_file)
-
             return True
         except Exception:
             return False
 
     def load_session(self, session_id: str) -> Optional[Session]:
-        """
-        Load session from file.
-        
-        Args:
-            session_id: Session ID to load
-
-        Returns:
-            Session object if found and valid, None otherwise
-        """
+        """Load session from file."""
         try:
             session_file = self.sessions_dir / f"{session_id}.json"
 
             if not session_file.exists():
                 return None
 
-            with open(session_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            with open(session_file, "r", encoding="utf-8") as file_obj:
+                data = json.load(file_obj)
 
             return Session.from_dict(data)
         except (json.JSONDecodeError, KeyError, IOError):
             return None
 
     def get_most_recent_session(self) -> Optional[Session]:
-        """
-        Get the most recently updated session.
-        
-        Returns:
-            Most recent Session object, or None if no sessions exist
-        """
+        """Get the most recently updated session."""
         sessions = self.list_sessions(limit=1)
         return sessions[0] if sessions else None
-    
-    def list_sessions(self, limit: int = 20) -> List[Session]:
-        """
-        List sessions sorted by updated_at descending.
-        
-        Args:
-            limit: Maximum number of sessions to return
 
-        Returns:
-            List of Session objects, most recent first
-        """
+    def list_sessions(self, limit: int = 20) -> List[Session]:
+        """List sessions sorted by updated_at descending."""
         sessions: List[Session] = []
 
         try:
             for session_file in self.sessions_dir.glob("*.json"):
                 try:
-                    with open(session_file, "r", encoding="utf-8") as f:
-                        data = json.load(f)
+                    with open(session_file, "r", encoding="utf-8") as file_obj:
+                        data = json.load(file_obj)
                     session = Session.from_dict(data)
                     sessions.append(session)
                 except (json.JSONDecodeError, KeyError, IOError):
-                    # Skip corrupted files
                     continue
 
-            # Sort by updated_at descending, then session_id descending for deterministic ties.
             sessions.sort(key=lambda session: (session.updated_at, session.session_id), reverse=True)
-            # Apply limit
             return sessions[:limit]
         except Exception:
             return []
 
     def delete_session(self, session_id: str) -> bool:
-        """
-        Delete a session file.
-        
-        Args:
-            session_id: Session ID to delete
-            
-        Returns:
-            True if deletion successful, False otherwise
-        """
+        """Delete a session file."""
         try:
             session_file = self.sessions_dir / f"{session_id}.json"
             if session_file.exists():
