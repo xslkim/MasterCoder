@@ -1,4 +1,7 @@
-"""Git repository awareness helpers for REQ-25."""
+"""Git 仓库感知模块 - REQ-25。
+
+增强程序对 Git 仓库状态的感知能力，将 Git 信息自动注入对话上下文。
+"""
 
 import subprocess
 from dataclasses import dataclass
@@ -6,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 
-# Git 命令超时（秒）
+# Git 命令超时（秒)
 GIT_TIMEOUT = 2
 
 # git status 最大行数
@@ -27,7 +30,7 @@ class GitInfo:
 
     @property
     def is_clean(self) -> bool:
-        """判断仓库状态是否为 clean（无未提交修改）。"""
+        """判断仓库状态是否为 clean（无未提交修改)。"""
         return len(self.status_lines) == 0
 
     def to_system_message(self) -> str:
@@ -74,7 +77,6 @@ def run_git_command(args: list[str], timeout: int = GIT_TIMEOUT) -> Optional[str
     Returns:
         命令输出（stdout），失败返回 None
     """
-
     try:
         result = subprocess.run(
             ["git"] + args,
@@ -128,7 +130,6 @@ def collect_git_info() -> GitInfo:
     recent_commits = []
     if log_output:
         recent_commits = log_output.split("\n")[:MAX_COMMITS]
-
     return GitInfo(
         is_git_repo=True,
         branch=branch,
