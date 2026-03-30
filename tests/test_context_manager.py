@@ -9,6 +9,7 @@ from mastercoder.context_manager import (
     resolve_file_references,
     build_enhanced_message,
     MAX_FILE_REFERENCES,
+    suggest_file_reference_completions,
 )
 
 
@@ -349,3 +350,33 @@ class TestEdgeCases:
             )
         finally:
             link.unlink()
+
+
+class TestFileReferenceCompletion:
+    """测试 @ 文件补全。"""
+
+    def test_complete_root_level_reference(self, tmp_path):
+        (tmp_path / "src").mkdir()
+        (tmp_path / "README.md").write_text("# readme", encoding="utf-8")
+
+        matches = suggest_file_reference_completions("@R", str(tmp_path))
+
+        assert matches == ["@README.md"]
+
+    def test_complete_nested_directory_reference(self, tmp_path):
+        nested = tmp_path / "src" / "mastercoder"
+        nested.mkdir(parents=True)
+        (nested / "main.py").write_text("print('hello')", encoding="utf-8")
+
+        matches = suggest_file_reference_completions("@src/ma", str(tmp_path))
+
+        assert matches == ["@src/mastercoder/"]
+
+    def test_complete_quoted_reference_with_spaces(self, tmp_path):
+        spaced = tmp_path / "my project"
+        spaced.mkdir()
+        (spaced / "main.py").write_text("print('hello')", encoding="utf-8")
+
+        matches = suggest_file_reference_completions('@"my p', str(tmp_path))
+
+        assert matches == ['@"my project/"']
