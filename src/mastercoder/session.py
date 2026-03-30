@@ -1,16 +1,14 @@
-"""
-Session persistence and recovery module for REQ-20
-"""
+"""Session persistence and recovery module for REQ-20."""
 
 import json
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
 
 class Session:
-    """Represents a conversation session"""
+    """Represents a conversation session."""
 
     def __init__(
         self,
@@ -29,7 +27,7 @@ class Session:
         self.messages = messages or []
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert session to dictionary for JSON serialization"""
+        """Convert session to dictionary for JSON serialization."""
         return {
             "session_id": self.session_id,
             "created_at": self.created_at,
@@ -41,7 +39,7 @@ class Session:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Session":
-        """Create session from dictionary"""
+        """Create session from dictionary."""
         return cls(
             session_id=data["session_id"],
             created_at=data["created_at"],
@@ -53,12 +51,12 @@ class Session:
 
 
 class SessionManager:
-    """Manages session persistence and recovery"""
+    """Manages session persistence and recovery."""
 
     def __init__(self, sessions_dir: Optional[Path] = None):
         """
         Initialize session manager.
-
+        
         Args:
             sessions_dir: Directory to store session files. If None, uses default.
         """
@@ -82,13 +80,15 @@ class SessionManager:
         return f"{timestamp}_{random_hex}"
 
     def _get_timestamp(self) -> str:
-        """Get current timestamp in ISO 8601 format"""
-        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        """Get current timestamp in ISO 8601 format with microsecond precision."""
+        return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace(
+            "+00:00", "Z"
+        )
 
     def create_session(self, working_directory: str, model: str) -> Session:
         """
         Create a new session.
-
+        
         Args:
             working_directory: Current working directory
             model: Model name being used
@@ -111,7 +111,7 @@ class SessionManager:
     def save_session(self, session: Session) -> bool:
         """
         Save session to file using atomic write (temp file + rename).
-
+        
         Args:
             session: Session object to save
 
@@ -138,7 +138,7 @@ class SessionManager:
     def load_session(self, session_id: str) -> Optional[Session]:
         """
         Load session from file.
-
+        
         Args:
             session_id: Session ID to load
 
@@ -161,24 +161,24 @@ class SessionManager:
     def get_most_recent_session(self) -> Optional[Session]:
         """
         Get the most recently updated session.
-
+        
         Returns:
             Most recent Session object, or None if no sessions exist
         """
         sessions = self.list_sessions(limit=1)
         return sessions[0] if sessions else None
-
+    
     def list_sessions(self, limit: int = 20) -> List[Session]:
         """
         List sessions sorted by updated_at descending.
-
+        
         Args:
             limit: Maximum number of sessions to return
 
         Returns:
             List of Session objects, most recent first
         """
-        sessions = []
+        sessions: List[Session] = []
 
         try:
             for session_file in self.sessions_dir.glob("*.json"):
@@ -191,8 +191,8 @@ class SessionManager:
                     # Skip corrupted files
                     continue
 
-            # Sort by updated_at descending
-            sessions.sort(key=lambda s: s.updated_at, reverse=True)
+            # Sort by updated_at descending, then session_id descending for deterministic ties.
+            sessions.sort(key=lambda session: (session.updated_at, session.session_id), reverse=True)
 
             # Apply limit
             return sessions[:limit]
@@ -202,10 +202,10 @@ class SessionManager:
     def delete_session(self, session_id: str) -> bool:
         """
         Delete a session file.
-
+        
         Args:
             session_id: Session ID to delete
-
+            
         Returns:
             True if deletion successful, False otherwise
         """
