@@ -16,14 +16,16 @@ BUILTIN_SYSTEM_PROMPT = """You are MasterCoder, an AI programming assistant. You
 class ConversationLoop:
     """对话循环类，处理用户与 AI 的交互。"""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, enable_color: bool = True) -> None:
         """初始化对话循环。
 
         Args:
             config: 配置对象
+            enable_color: 是否启用 ANSI 颜色输出
         """
         self._config = config
         self._working_dir = Path(getattr(config, "_working_dir", Path.cwd())).resolve()
+        self._enable_color = enable_color
         self._message_manager = MessageManager()
         self._api_client = APIClient(config)
         self._initialize_system_message()
@@ -146,7 +148,7 @@ class ConversationLoop:
         error_msg = f"Error: {str(error)}"
 
         # 尝试使用 ANSI 颜色代码
-        if sys.stdout.isatty():
+        if self._enable_color and sys.stdout.isatty():
             # 红色文字: \033[31m
             print(f"\033[31m{error_msg}\033[0m")
         else:

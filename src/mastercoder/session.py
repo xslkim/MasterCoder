@@ -193,7 +193,6 @@ class SessionManager:
 
             # Sort by updated_at descending, then session_id descending for deterministic ties.
             sessions.sort(key=lambda session: (session.updated_at, session.session_id), reverse=True)
-
             # Apply limit
             return sessions[:limit]
         except Exception:
