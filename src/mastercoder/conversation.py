@@ -1,9 +1,11 @@
 """主对话循环 - 串联配置、API 客户端和消息管理器。"""
 
 import sys
+from pathlib import Path
 
 from mastercoder.api_client import APIClient, APIError
 from mastercoder.config import Config, get_config
+from mastercoder.context_manager import build_enhanced_message, install_file_reference_completion
 from mastercoder.message_manager import MessageManager
 
 
@@ -21,6 +23,7 @@ class ConversationLoop:
             config: 配置对象
         """
         self._config = config
+        self._working_dir = Path(getattr(config, "_working_dir", Path.cwd())).resolve()
         self._message_manager = MessageManager()
         self._api_client = APIClient(config)
         self._initialize_system_message()
@@ -48,6 +51,7 @@ class ConversationLoop:
         print("MasterCoder - AI Programming Assistant")
         print("Type your message and press Enter to chat. Press Ctrl+C to exit.")
         print()
+        install_file_reference_completion(str(self._working_dir))
 
         while True:
             try:
@@ -78,6 +82,8 @@ class ConversationLoop:
         Args:
             user_input: 用户输入文本
         """
+        user_input = build_enhanced_message(user_input, str(self._working_dir))
+
         # 添加用户消息
         self._message_manager.add_message("user", user_input)
 
