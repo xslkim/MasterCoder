@@ -1,59 +1,76 @@
-# MasterCoder Automation (CrewAI)
+# MasterCoder
 
-Deterministic multi-agent software delivery framework built with CrewAI.
+MasterCoder is a terminal-based AI coding assistant with project-aware prompts, configuration layering, Git context injection, and `@file` context expansion.
 
-**详细教程（环境变量、冒烟测试、`mc-auto`、评审结论与已知缺口）：** [docs/automation-tutorial.md](docs/automation-tutorial.md)
+详细使用文档见 [docs/mastercoder-user-guide.md](docs/mastercoder-user-guide.md)。
 
-**`mastercoder_automation` 包结构、设计原因、依赖与全新 Ubuntu 搭建：** [docs/mastercoder-automation.md](docs/mastercoder-automation.md)
+## Shipped In This Release
 
-## What it provides
+- Interactive terminal chat entrypoint via `mastercoder`
+- Command-line startup options such as `--model`, `--api-key`, `--api-url`, `--no-color`, and `--version`
+- Global and project-level configuration loading
+- `MASTERCODER.md` project instruction injection
+- `@path/to/file` and `@"path with spaces"` file context injection
+- Git-aware prompt and Git summary injection into the system prompt
+- Non-interactive pipeline mode through stdin
 
-- Deterministic REQ state machine (`PENDING -> READY -> DEVELOPING -> REVIEWING -> TESTING -> DONE/FIXING/BLOCKED`)
-- Three role agents (Dev, Review, QA) powered by CrewAI
-- Objective quality gates (`ruff`, `pytest`, coverage threshold)
-- `gh` CLI integration for branch/PR/review/comment/merge operations
-- JSON state store for resumable pipeline execution
-- GitHub Actions workflow entrypoint
-
-## Quick start（开跑）
-
-前置条件：**已安装 `git` 与 [GitHub CLI `gh`](https://cli.github.com/)**（在 PATH 中可执行）。
+## Quick Start
 
 ```bash
-cd /path/to/MasterCoder
-python3 -m pip install -e ".[dev]"
-source .env.sh
-export REPO_ROOT="$(pwd)"
-export GITHUB_REPO="your-org/your-repo"
+git clone git@github.com:xslkim/MasterCoder.git
+cd MasterCoder
+python3 -m pip install -e .
 
-cp state/req-status.example.json state/req-status.json
-# 编辑 state/req-status.json：将要做的 REQ 标为 READY
+mkdir -p ~/.mastercoder
+cat > ~/.mastercoder/config.json <<'EOF'
+{
+	"api_key": "YOUR_API_KEY",
+	"api_base_url": "https://api.openai.com/v1",
+	"model": "gpt-4o"
+}
+EOF
 
-python3 scripts/crewai_glm_smoke.py
-python3 scripts/crewai_github_pat_smoke.py
-
-mc-auto run-once --req-id REQ-01
+mastercoder
 ```
 
-本机固定路径：**`./run-automation.sh`** 默认 **`mc-auto run-all`**（无冒烟），按 `state/req-status.json` 反复推进所有 `READY`/`FIXING` 的 REQ，直到做完或达到 `--max-rounds`。指定单个 REQ：`./run-automation.sh REQ-01`。可选：`--once` 只跑一轮，`--smoke` 先跑冒烟。详见脚本注释。
+如果你不想把密钥写入文件，也可以只设置环境变量：
 
-完整清单、严格真人 Review/QA、排错：**[docs/automation-tutorial.md](docs/automation-tutorial.md)** §0。
+```bash
+export MASTERCODER_API_KEY="YOUR_API_KEY"
+export MASTERCODER_API_BASE_URL="https://api.openai.com/v1"
+export MASTERCODER_MODEL="gpt-4o"
+mastercoder
+```
 
-## Required environment variables
+## Common Commands
 
-- `OPENAI_API_KEY` (or your OpenAI-compatible key supported by CrewAI)
-- `OPENAI_API_BASE_URL` (for OpenAI-compatible providers such as Zhipu)
-- `MODEL_NAME` (default: `gpt-4o-mini`)
-- `GITHUB_REPO` (for example: `xslkim/MasterCoder`)
-- `REPO_ROOT` (Git working copy root for automation; default: current directory)
-- `GIT_AGENT_TOKEN_DEV` / `GIT_AGENT_USERNAME_DEV` / `GIT_AGENT_EMAIL_DEV` (push + PR + commit identity)
-- `GIT_AGENT_TOKEN_REVIEW` + `GIT_AGENT_USERNAME_REVIEW` (post `gh pr review` as Review account, or human poll)
-- `GIT_AGENT_TOKEN_TEST` + `GIT_AGENT_USERNAME_TEST` (post QA comment, or human poll)
-- Optional: `GIT_AGENT_TOKEN_MERGE`, `AUTOMATION_STRICT_HUMAN_REVIEW`, `AUTOMATION_STRICT_HUMAN_QA` — see [docs/automation-tutorial.md](docs/automation-tutorial.md)
-- `COVERAGE_MIN` (default: `80`)
+```bash
+mastercoder
+mastercoder -m deepseek-chat
+mastercoder --api-key "$MASTERCODER_API_KEY" --api-url https://example.com/v1
+mastercoder --version
+mastercoder --no-color
+echo "Summarize this repository" | mastercoder --api-key "$MASTERCODER_API_KEY"
+```
 
-## Notes
+## Configuration Locations
 
-- This framework is deterministic at workflow level. LLM output is advisory and constrained by fixed gates.
-- It does not replace CI checks; it orchestrates when and how checks run.
-- Before a REQ can enter `TESTING`, the Review step must also approve the newly added or modified `tests/` cases.
+- Global config: `~/.mastercoder/config.json`
+- Project config: `<repo>/.mastercoder/config.json`
+- Project instructions: `<repo>/MASTERCODER.md`
+
+配置优先级：命令行参数 > 环境变量 > 项目级配置 > 全局配置 > 默认值。
+
+## Current Limitations
+
+- `--resume` 参数已经实现了解析，但当前发布版本尚未把会话恢复流程接入启动入口。
+- 会话持久化与会话列表模块已经在仓库中实现，但当前主入口没有暴露 `/sessions` 等用户命令。
+- 顶层 fallback REPL 在没有 API key 时仅提供本地回显和 `/exit`，不会调用模型。
+- 仓库中保留了自动化开发框架代码；本发布分支面向最终用户时，应以 `src/mastercoder/` 和 [docs/mastercoder-user-guide.md](docs/mastercoder-user-guide.md) 为准。
+
+## Internal Docs
+
+如果你还需要仓库内的自动化开发框架说明，可以继续参考：
+
+- [docs/automation-tutorial.md](docs/automation-tutorial.md)
+- [docs/mastercoder-automation.md](docs/mastercoder-automation.md)
