@@ -2,8 +2,13 @@
 .env.bash
 .env
 .automation-worktrees/
+.coverage
 __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.pyc
+*.egg-info/
 reports/
+.venv/
+dist/
+build/

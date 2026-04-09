@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mastercoder"
+version = "0.1.0"
+description = "AI-powered terminal coding assistant"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "MasterCoder contributors" }]
+
+[project.scripts]
+mastercoder = "main:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "ruff>=0.1", "pyinstaller>=6.0"]
+
+[tool.setuptools]
+py-modules = ["main"]
+package-dir = { "mastercoder" = "core" }
+packages = ["mastercoder", "mastercoder.security", "mastercoder.tools"]
