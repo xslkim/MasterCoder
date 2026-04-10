@@ -83,10 +83,12 @@ def run_git_command(args: list[str], timeout: int = GIT_TIMEOUT) -> Optional[str
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=timeout,
         )
         if result.returncode == 0:
-            return result.stdout.strip()
+            return (result.stdout or "").strip()
         return None
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return None
