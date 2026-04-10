@@ -2,6 +2,8 @@
 
 终端里的 AI 编程助手：在命令行中与模型对话，支持 OpenAI 兼容 API（含自定义 `api_base_url`），并可在当前 Git 仓库上下文中工作。
 
+与 **当前 main 实现一致** 的功能列表见 [`docs/functions.md`](docs/functions.md)。
+
 ## 功能概要
 
 - **交互模式**：在终端中持续对话（需配置 API Key）。
